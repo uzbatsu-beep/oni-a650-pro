@@ -1,0 +1,47 @@
+name: Publish Windows v0.2.0-preview.1
+on:
+  push:
+    branches: [release/v0.2.0-preview.1]
+permissions: {}
+concurrency:
+  group: publish-oni-a650-pro-v0.2.0-preview.1
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v0.2.0-preview.1
+      SOURCE_SHA: 0546bbfa6d1848378b5d1381c824ee1eaf38e004
+      ARTIFACT_ID: '14442582158'
+      ZIP_NAME: oni-a650-pro-0.2.0-preview.1-windows-x64.zip
+      ZIP_SHA256: c6fd2e294a9774d25496a9b3cda7d5d1a32f10eee8b69b7918221212e3c7a1f8
+    steps:
+      - name: Verify Windows build and publish prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_sha=$(gh api "repos/$GH_REPO/actions/artifacts/$ARTIFACT_ID" --jq '.workflow_run.head_sha')
+          test "$build_sha" = "$SOURCE_SHA"
+          gh api "repos/$GH_REPO/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP_NAME"
+          printf '%s  %s\n' "$ZIP_SHA256" "$ZIP_NAME" > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+          unzip -t "$ZIP_NAME"
+          cat > notes.md <<'NOTES'
+          Предварительный выпуск конфигуратора ONI A650 / A650M для стендовой проверки на Windows x64.
+
+          **Запуск.** Скачайте ZIP из раздела Assets, распакуйте и запустите `oni-a650-pro.exe`. На компьютере должен быть установлен Microsoft Edge WebView2 Runtime. Стили и интерфейс входят в приложение.
+
+          **Телеметрия.** Выходное напряжение U00.02, выходной ток U00.03 и напряжение звена DC U00.06 отображаются после подтверждённого ответа FC03 текущего ПЧ. Подтверждённый ноль отображается числом, пропущенные и устаревшие показания — знаком «—». При наведении на число можно посмотреть raw.
+
+          **Проверки.** На Windows Server 2022 прошли 9 тестов Rust, сборка EXE и открытие окна. Стендовая приёмка этой ревизии на Windows 10 с физическим ПЧ остаётся открытой. Для первого сравнения с панелью ПЧ используйте режим «Только чтение».
+
+          [Исходный коммит](https://github.com/uzbatsu-beep/oni-a650-pro/commit/0546bbfa6d1848378b5d1381c824ee1eaf38e004) · [Проверки Windows](https://github.com/uzbatsu-beep/oni-a650-pro/actions/runs/44337586988)
+          NOTES
+          gh release create "$RELEASE_TAG" "$ZIP_NAME" SHA256SUMS.txt \
+            --target "$SOURCE_SHA" --prerelease \
+            --title 'ONI A650 PRO 0.2.0-preview.1 для Windows x64' --notes-file notes.md
