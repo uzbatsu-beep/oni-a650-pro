@@ -1,0 +1,618 @@
+param_id,group,name,modbus_address,address_confidence,access,data_type,scale,unit,min_value,max_value,default_value,enum_values,source,confidence,verified_on_device,notes
+F00.00,F00,Пароль пользователя,0x0000,high,RW,uint16,1,,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8000
+F00.01,F00,Отображение параметров,0x0001,high,RW,enum16,1,,0,2,0,"0=Отображение всех параметров;1=Отображение только F00.00, F00.01 и параметров, определенных–пользователем;2=Отображение только A0-00, A0-01 и параметров, отличных от заводских параметров по умолчанию",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8001
+F00.02,F00,Защита параметров,0x0002,high,RW,enum16,1,,0,1,0,0=Программирование всех параметров;1=Программирование только параметра F00.02,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8002
+F00.03,F00,Отображение типа G/P,0x0003,high,RW,enum16,1,,0,1,0,"0=Тип G (постоянная нагрузка крутящего момента);1=Тип P (переменная нагрузка крутящего момента, вентилятор или насос)",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8003
+F00.04,F00,Инициализация параметров,0x0004,high,RW,enum16,1,,0,6,0,0=Нулевая операция;1=Возврат всех параметров к заводским настройкам (за исключением параметров двигателя);2=Очистка регистрации неисправностей;3=Создание резервной копии текущих пользовательских параметров;4=Восстанавливает текущие пользовательские параметры;5=Возврат всех параметров к заводским настройкам (включая параметры двигателя);6=Сброс рассеивания мощности,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8004
+F00.05,F00,Копирование параметров,0x0005,high,RW,enum16,1,,0,3,0,0=Нулевая операция;1=Загрузка параметров;2=Скачивание параметров (за исключением параметров двигателя);3=Скачивание параметров (включая параметры двигателя),ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8005
+F00.06,F00,Режим редактирования параметров,0x0006,high,RW,enum16,1,,0,2,0,0=Доступный для редактирования через клавиатуру и RS485;1=Доступный для редактирования через клавиатуру;2=Доступный для редактирования через RS485,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8006
+F00.08,F00,"Двигатель 1, режим управления",0x0008,high,RW,enum16,1,,0,2,0,0=Управление напряжением/частотой (V/F);1=Бессенсорное векторное управление 1;2=Бессенсорное векторное управление 2,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8008
+F00.09,F00,Режим ввода DI7/HI,0x0009,high,RW,enum16,1,,0,2,0,0=Вывод цифрового входа 7;1=Импульсный вход,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8009
+F00.10,F00,Режим ввода AI1/AI2/AI3,0x000A,high,RW,uint16,1,,000,111,000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x800A
+F00.11,F00,Режим вывода Y2/HO,0x000B,high,RW,enum16,1,,0,1,0,0=Вывод 2 – цифровоймвыход;1=Импульсный выход,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x800B
+F00.12,F00,ШИМ оптимизация,0x000C,high,RW,uint16,1,,000,923,500,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x800C
+F00.13,F00,"Несущая частота, кГц",0x000D,high,RW,uint16,0.001,Hz,F00.15,F00.14,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x800D
+F00.14,F00,"Верхняя несущая частота, кГц",0x000E,high,RW,uint16,0.001,Hz,F00.15,16.000,8.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x800E
+F00.15,F00,"Нижняя несущая частота, кГц",0x000F,high,RW,uint16,0.001,Hz,0.700,F00.14,2.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x800F
+F00.16,F00,"Напряжение на выходе, %",0x0010,high,RW,uint16,0.1,%,5.0,150.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8010
+F00.17,F00,AVR,0x0011,high,RW,enum16,1,,0,2,0,"0=Отключен;1=Включен;2=Отключен (при VDC > VDCном), Включен (при VDC <= VDCном)",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8011
+F00.18,F00,Управление вентилятором,0x0012,high,RW,enum16,1,,0,1,1,0=Запуск при включенном питания;1=Работает во время эксплуатации,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8012
+F00.19,F00,Заводской пароль,0x0013,high,RW,uint16,1,,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8013
+F00.20,F00,"Номинальная мощность ПЧ, кВт",0x0014,high,R,uint16,0.1,min,0.2,1000.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8014
+F00.21,F00,"Номинальное напряжение ПЧ, В",0x0015,high,R,uint16,1,min,60,660,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8015
+F00.22,F00,"Номинальная сила тока ПЧ, А",0x0016,high,R,uint16,0.1,min,0.1,1500.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8016
+F00.23,F00,Версия микропрограммы,0x0017,high,R,uint16,0.001,,0.000,65.535,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8017
+F00.24,F00,Пароль дилера,0x0018,high,RW,uint16,1,,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8018
+F00.25,F00,"Установка времени работы, ч",0x0019,high,RW,uint16,1,h,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8019
+F01.00,F01,Выбор источника частоты,0x0100,high,RW,enum16,1,h,0,7,0,"0=Источник задающей частоты;1=Источник вспомогательной частоты;2=Задающая + Вспомогательная;3=Задающая – Вспомогательная;4=MAX (Задающая, Вспомогательная);5=MIN (Задающая, Вспомогательная);6=AI1 * (Задающая + Вспомогательная);7=AI2 * (Задающая + Вспомогательная)",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8100
+F01.01,F01,Источник управления частотой,0x0101,high,RW,enum16,1,h,0,9,6,0=Цифровая настройка задающей частоты (F01.02);1=Потенциометр клавиатуры;2=Аналоговый вход AI1;3=По каналу связи;4=Многоступенчатое;5=ПЛК;6=Выход процесса ПИД;7=Импульсный вход DI7/HI;8=Аналоговый вход AI2;9=Аналоговый вход AI3,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8101; В табл. 5.2 A650M default=6 (ПИД), в A650 default=1 (Потенциометр пульта)"
+F01.02,F01,"Цифровая настройка задающей частоты, Гц",0x0102,high,RW,uint16,0.01,Hz,0.00,F01.08,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8102
+F01.03,F01,Источник управления вспомогательной частотой,0x0103,high,RW,enum16,1,h,0,9,0,0=Цифровая настройка задающей частоты (F01.02);1=Потенциометр клавиатуры;2=Аналоговый вход AI1;3=По каналу связи;4=Многоступенчатое;5=ПЛК;6=Выход процесса ПИД;7=Импульсный вход DI7/HI;8=Аналоговый вход AI2;9=Аналоговый вход AI3,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8103
+F01.04,F01,"Цифровая настройка вспомогательной частоты, Гц",0x0104,high,RW,uint16,0.01,Hz,0.00,F01.08,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8104
+F01.05,F01,Диапазон вспомогательной частоты,0x0105,high,RW,enum16,1,h,0,1,0,0=Относительно максимальной частоты;1=Относительно задающей частоты,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8105
+F01.06,F01,"Коэффициент вспомогательной частоты, %",0x0106,high,RW,uint16,0.1,h,0.0,150.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8106
+F01.07,F01,"Толчковая частота (JOG), Гц",0x0107,high,RW,uint16,0.01,Hz,0.00,F01.08,5.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8107
+F01.08,F01,"Максимальная частота, Гц",0x0108,high,RW,uint16,0.01,Hz,20.00,600.00,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8108
+F01.09,F01,"Верхний предел частоты, Гц",0x0109,high,RW,uint16,0.01,Hz,F01.10,F01.08,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8109
+F01.10,F01,"Нижний предел частоты, Гц",0x010A,high,RW,uint16,0.01,Hz,0.00,F01.09,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x810A
+F01.11,F01,Когда заданная частота ниже F01.10,0x010B,high,RW,enum16,1,h,0,1,0,0=Работа на нижнем пределе частоты;1=Работа на частоте 0 Гц после задержки F01.12,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x810B
+F01.12,F01,"Время работы на нижнем пределе частоты, с",0x010C,high,RW,uint16,0.1,h,0.0,6000.0,60.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x810C
+F01.13,F01,"Частотная коррекция начальной частоты, Гц",0x010D,high,RW,uint16,0.01,Hz,0.00,600.00,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x810D
+F01.14,F01,"Компенсация частоты каждые 50 Гц, Гц",0x010E,high,RW,uint16,0.01,Hz,0.00,50.00,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x810E
+F02.00,F02,Команда запуска,0x0200,high,RW,enum16,1,,0,2,1,0=Клавиатура (LED выкл.);1=Цифровой вход (LED вкл.);2=По каналу связи (LED мигает),ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8200; В табл. 5.2 A650M default=1 (Клеммы), в A650 default=0 (Пульт)"
+F02.01,F02,Направление вращения,0x0201,high,RW,enum16,1,,0,1,0,0=Прямое;1=Реверс,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8201
+F02.02,F02,Разрешение реверса,0x0202,high,RW,enum16,1,,0,1,0,0=Реверс разрешен;1=Реверс запрещен,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8202
+F02.03,F02,"Пауза между прямым и реверсивным вращением, с",0x0203,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8203
+F02.04,F02,Режим пуска,0x0204,high,RW,uint16,1,,0000,1101,0000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8204
+F02.05,F02,"Стартовая частота, Гц",0x0205,high,RW,uint16,0.01,Hz,0.00,10.00,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8205
+F02.06,F02,"Время удержания стартовой частоты, с",0x0206,high,RW,uint16,0.1,h,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8206
+F02.07,F02,"Ток тормоза DC перед запуском, %",0x0207,high,RW,uint16,0.1,%,0.0,150.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8207
+F02.08,F02,"Время торможения DC перед запуском, с",0x0208,high,RW,uint16,0.1,s,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8208
+F02.09,F02,"Ток поиска скорости, %",0x0209,high,RW,uint16,0.1,%,0.0,180.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8209
+F02.10,F02,"Время замедления поиска скорости, с",0x020A,high,RW,uint16,0.1,s,0.0,10.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x820A
+F02.11,F02,Коэффициент поиска скорости,0x020B,high,RW,uint16,0.01,,0.01,5.00,0.30,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x820B
+F02.12,F02,Способ остановки,0x020C,high,RW,enum16,1,,0,1,0,0=Остановка торможением;1=Остановка выбегом,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x820C
+F02.13,F02,"Стартовая частота торможения DC, Гц",0x020D,high,RW,uint16,0.01,Hz,0.00,50.00,2.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x820D
+F02.14,F02,"Ток торможения DC останова, %",0x020E,high,RW,uint16,0.1,%,0.0,150.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x820E
+F02.15,F02,"Время ожидания перед торможением DC, с",0x020F,high,RW,uint16,0.1,s,0.0,30.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x820F
+F02.16,F02,"Время торможения DC при останове, с",0x0210,high,RW,uint16,0.1,s,0.0,30.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8210
+F02.17,F02,Динамическое торможение,0x0211,high,RW,enum16,1,,0,3,0,0=Отключено;1=Активно;2=Активно во время работы;3=Активно во время замедления,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8211
+F02.18,F02,"Напряжение динамического торможения, %",0x0212,high,RW,uint16,0.1,%,90.0,150.0,128.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8212
+F02.19,F02,"Коэффициент использования торможения, %",0x0213,high,RW,uint16,0.1,%,5.0,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8213
+F02.20,F02,Выбор выхода 0 Гц,0x0214,high,RW,enum16,1,Hz,0,1,0,0=Выход без напряжения;1=Выход с напряжением,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8214
+F02.21,F02,Выбор повторного запуска после прекращения подачи тока,0x0215,high,RW,enum16,1,,0,1,0,0=Отключено;1=Активно,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8215
+F02.22,F02,"Время ожидания повторного запуска после прекращения подачи тока, с",0x0216,high,RW,uint16,0.1,s,0.0,10.0,0.5,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8216
+F03.00,F03,"Время ускорения 1, с",0x0300,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8300
+F03.01,F03,"Время замедления 1, с",0x0301,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8301
+F03.02,F03,"Время ускорения 2, с",0x0302,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8302
+F03.03,F03,"Время замедления 2, с",0x0303,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8303
+F03.04,F03,"Время ускорения 3, с",0x0304,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8304
+F03.05,F03,"Время замедления 3, с",0x0305,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8305
+F03.06,F03,"Время ускорения 4, с",0x0306,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8306
+F03.07,F03,"Время замедления 4, с",0x0307,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8307
+F03.08,F03,"Время ускорения толчкового режима (JOG), с",0x0308,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8308
+F03.09,F03,"Время замедления толчкового режима (JOG), с",0x0309,high,RW,uint16,0.1,s,0.0,6000.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8309
+F03.10,F03,Кривая ускорения/замедления,0x030A,high,RW,enum16,1,,0,1,0,0=Линейное ускорение/замедление;1=S-кривая ускорения/замедления,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x830A
+F03.11,F03,"Время начала ускорения S-кривой, с",0x030B,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x830B
+F03.13,F03,"Точка переключения частоты между временем ускорения 0 и временем ускорения 1, Гц",0x030D,high,RW,uint16,0.01,Hz,0.00,F01.08,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x830D
+F03.14,F03,"Точка переключения частоты между временем замедления 1 и временем замедления 2, Гц",0x030E,high,RW,uint16,0.01,Hz,0.00,F01.08,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x830E
+F03.15,F03,"Время окончания ускорения S-кривой, c",0x030F,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x830F
+F03.16,F03,"Время начала замедления S-кривой, c",0x0310,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8310
+F03.17,F03,"Время окончания замедления S-кривой, c",0x0311,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8311
+F04.00,F04,Функция клеммы DI1,0x0400,high,RW,uint16,1,,0,58,1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8400
+F04.01,F04,Функция клеммы DI2,0x0401,high,RW,uint16,1,,0,58,1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8401
+F04.02,F04,Функция клеммы DI3,0x0402,high,RW,uint16,1,,0,58,7,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8402
+F04.03,F04,Функция клеммы DI4,0x0403,high,RW,uint16,1,,0,58,13,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8403
+F04.04,F04,Функция клеммы DI5,0x0404,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8404
+F04.05,F04,Функция клеммы DI6,0x0405,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8405
+F04.06,F04,Функция клеммы DI7,0x0406,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8406
+F04.07,F04,Функция клеммы AI1,0x0407,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8407
+F04.08,F04,Функция клеммы AI2,0x0408,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8408
+F04.09,F04,Функция клеммы AI3,0x0409,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8409
+F04.10,F04,"Время фильтрации клеммы цифрового входа DI1..DI7, с",0x040A,high,RW,uint16,0.001,s,0.000,1.000,0.010,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x840A
+F04.11,F04,"Время задержки клеммы DI1, с",0x040B,high,RW,uint16,0.1,s,0.0,300.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x840B
+F04.12,F04,"Время задержки клеммы DI2, с",0x040C,high,RW,uint16,0.1,s,0.0,300.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x840C
+F04.13,F04,"Входы DI1..DI5, положительная/отрицательная логика",0x040D,high,RW,uint16,1,,00000,11111,00000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x840D
+F04.14,F04,"Входы DI6, DI7, AI1..AI3, положительная/отрицательная логика",0x040E,high,RW,uint16,1,,00000,11111,00000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x840E
+F04.15,F04,Режим управления с клемм FWD/REV,0x040F,high,RW,enum16,1,,0,3,0,0=Двухпроводной режим 1;0=Двухпроводной режим 2;0=Трехпроводной режим 1;0=Трехпроводной режим 2,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x840F
+F04.16,F04,Клемма UP/DOWN Регулятор частоты,0x0410,high,RW,uint16,1,h,0000,1111,0001,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8410
+F04.17,F04,"Клемма UP/DOWN Шаг изменения частоты, Гц/200мс (0=отключено)",0x0411,high,RW,uint16,0.01,Hz,0.00,50.00,1.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8411
+F04.18,F04,Выбор действия клеммы во время подачи питания,0x0412,high,RW,enum16,1,,0,2,0,0=Вход активирован до подачи питания;1=Передний фронт + высокий уровень (при включенном питании);2=Передний фронт + высокий уровень (каждый раз),ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8412
+F04.19,F04,"Время задержки перед деактивацией клеммы DI1, с",0x0413,high,RW,uint16,0.1,s,0.0,300.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8413; Только в A650M (ред. 3, 2023)"
+F04.20,F04,"Время задержки перед деактивацией клеммы DI2, с",0x0414,high,RW,uint16,0.1,s,0.0,300.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8414; Только в A650M (ред. 3, 2023)"
+F05.00,F05,Функция выхода Y1,0x0500,high,RW,uint16,1,,0,42,1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8500
+F05.01,F05,Функция выхода Y2,0x0501,high,RW,uint16,1,,0,42,3,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8501
+F05.02,F05,Функция выхода реле R1,0x0502,high,RW,uint16,1,,0,42,2,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8502
+F05.03,F05,Функция выхода реле R2,0x0503,high,RW,uint16,1,,0,42,11,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8503
+F05.04,F05,"Время задержки на выходе Y1, с",0x0504,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8504
+F05.05,F05,"Время задержки на выходе Y2, с",0x0505,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8505
+F05.06,F05,"Время задержки на выходе R1, с",0x0506,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8506
+F05.07,F05,"Время задержки на выходе R2, с",0x0507,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8507
+F05.08,F05,"Цифровые выходы, положительная/отрицательная логика",0x0508,high,RW,uint16,1,,0000,1111,0000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8508
+F05.09,F05,"Диапазон достигаемой частоты, Гц",0x0509,high,RW,uint16,0.01,Hz,0.00,20.00,5.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8509
+F05.10,F05,"FDT1, верхняя граница, Гц",0x050A,high,RW,uint16,0.01,Hz,0.00,F01.08,30.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x850A
+F05.11,F05,"FDT1, нижняя граница, Гц",0x050B,high,RW,uint16,0.01,Hz,0.00,F01.08,30.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x850B
+F05.12,F05,"FDT2, верхняя граница, Гц",0x050C,high,RW,uint16,0.01,Hz,0.00,F01.08,30.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x850C
+F05.13,F05,"FDT2, нижняя граница, Гц",0x050D,high,RW,uint16,0.01,Hz,0.00,F01.08,30.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x850D
+F05.14,F05,"Текущее время работы, мин (0=отключено)",0x050E,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x850E
+F05.15,F05,"Настройка суммарного времени подачи энергии, час (0=отключено)",0x050F,high,RW,uint16,1,h,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x850F
+F05.16,F05,"Настройка суммарного времени работы, час (0=отключено)",0x0510,high,RW,uint16,1,h,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8510
+F05.17,F05,Выбор управления торможением,0x0511,high,RW,enum16,1,,0,1,0,0=Отключено;1=Разрешено,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8511
+F05.18,F05,"Частота открытия тормоза, Гц",0x0512,high,RW,uint16,0.01,Hz,F05.22,30.00,2.50,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8512
+F05.19,F05,"Ток открытия тормоза, %",0x0513,high,RW,uint16,0.1,%,0.0,200.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8513
+F05.20,F05,"Время ожидания открытия тормоза, c",0x0514,high,RW,uint16,0.01,s,0.00,10.00,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8514
+F05.21,F05,"Время работы открытия тормоза, c",0x0515,high,RW,uint16,0.01,s,0.00,10.00,0.50,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8515
+F05.22,F05,"Частота закрытия тормоза, Гц",0x0516,high,RW,uint16,0.01,Hz,0.00,F05.18,2.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8516
+F05.23,F05,"Время ожидания закрытия тормоза, c",0x0517,high,RW,uint16,0.01,s,0.00,10.00,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8517
+F05.24,F05,"Время работы закрытия тормоза, c",0x0518,high,RW,uint16,0.01,s,0.00,10.00,0.50,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8518
+F05.26,F05,"Превышение тока 1, А",0x051A,high,RW,uint16,0.1,A,0.0,1500.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x851A; Только в A650M (ред. 3, 2023)"
+F05.27,F05,"Превышение тока 2, А",0x051B,high,RW,uint16,0.1,A,0.0,1500.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x851B; Только в A650M (ред. 3, 2023)"
+F06.00,F06,"Минимальный ввод кривой AI1, %",0x0600,high,RW,uint16,0.1,%,0.0,F06.02,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8600
+F06.01,F06,"Установка значения минимального ввода кривой AI1, %",0x0601,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8601
+F06.02,F06,"Ввод точки перегиба 1 кривой AI1, %",0x0602,high,RW,uint16,0.1,%,F06.00,F06.04,25.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8602
+F06.03,F06,"Установка значения ввода точки перегиба 1 кривой AI1, %",0x0603,high,RW,int16,0.1,%,-100.0,100.0,25.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8603
+F06.04,F06,"Ввод точки перегиба 2 кривой AI1, %",0x0604,high,RW,uint16,0.1,%,F06.02,F06.06,75.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8604
+F06.05,F06,"Установка значения ввода точки перегиба 2 кривой AI1, %",0x0605,high,RW,int16,0.1,%,-100.0,100.0,75.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8605
+F06.06,F06,"Максимальный ввод кривой AI1, %",0x0606,high,RW,uint16,0.1,%,F06.04,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8606
+F06.07,F06,"Установка значения максимального ввода кривой AI1, %",0x0607,high,RW,int16,0.1,%,-100.0,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8607
+F06.08,F06,"Минимальный ввод кривой AI2, %",0x0608,high,RW,uint16,0.1,%,0.0,F06.10,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8608
+F06.09,F06,"Установка значения минимального ввода кривой AI2, %",0x0609,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8609
+F06.10,F06,"Ввод точки перегиба 1 кривой AI2, %",0x060A,high,RW,uint16,0.1,%,F06.08,F06.12,25.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x860A
+F06.11,F06,"Установка значения ввода точки перегиба 1 кривой AI2, %",0x060B,high,RW,int16,0.1,%,-100.0,100.0,25.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x860B
+F06.12,F06,"Ввод точки перегиба 2 кривой AI2, %",0x060C,high,RW,uint16,0.1,%,F06.10,F06.14,75.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x860C
+F06.13,F06,"Установка значения ввода точки перегиба 2 кривой AI2, %",0x060D,high,RW,int16,0.1,%,-100.0,100.0,75.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x860D
+F06.14,F06,"Максимальный ввод кривой AI2, %",0x060E,high,RW,uint16,0.1,%,F06.12,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x860E
+F06.15,F06,"Установка значения максимального ввода кривой AI2, %",0x060F,high,RW,int16,0.1,%,-100.0,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x860F
+F06.16,F06,"Минимальный ввод кривой AI3, %",0x0610,high,RW,uint16,0.1,%,0.0,F06.18,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8610
+F06.17,F06,"Установка значения минимального ввода кривой AI3, %",0x0611,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8611
+F06.18,F06,"Ввод точки перегиба 1 кривой AI3, %",0x0612,high,RW,uint16,0.1,%,F06.16,F06.20,25.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8612
+F06.19,F06,"Установка значения ввода точки перегиба 1 кривой AI3, %",0x0613,high,RW,int16,0.1,%,-100.0,100.0,25.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8613
+F06.20,F06,"Ввод точки перегиба 2 кривой AI3, %",0x0614,high,RW,uint16,0.1,%,F06.18,F06.22,75.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8614
+F06.21,F06,"Установка значения ввода точки перегиба 2 кривой AI3, %",0x0615,high,RW,int16,0.1,%,-100.0,100.0,75.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8615
+F06.22,F06,"Максимальный ввод кривой AI3, %",0x0616,high,RW,uint16,0.1,%,F06.20,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8616
+F06.23,F06,"Установка значения максимального ввода кривой AI3, %",0x0617,high,RW,int16,0.1,%,-100.0,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8617
+F06.24,F06,"Минимальный ввод кривой потенциометра, %",0x0618,high,RW,uint16,0.1,%,0.0,F06.26,0.5,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8618
+F06.25,F06,"Установка значения минимального ввода кривой потенциометра, %",0x0619,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8619
+F06.26,F06,"Максимальный ввод кривой потенциометра, %",0x061A,high,RW,uint16,0.1,%,F06.24,100.0,99.9,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x861A
+F06.27,F06,"Установка значения максимального ввода кривой потенциометра, %",0x061B,high,RW,int16,0.1,%,-100.0,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x861B
+F06.28,F06,"Время фильтрации клеммы AI1, с",0x061C,high,RW,uint16,0.001,s,0.000,10.000,0.100,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x861C
+F06.29,F06,"Время фильтрации клеммы AI2, с",0x061D,high,RW,uint16,0.001,s,0.000,10.000,0.100,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x861D
+F06.30,F06,"Время фильтрации клеммы AI3, с",0x061E,high,RW,uint16,0.001,s,0.000,10.000,0.100,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x861E
+F06.31,F06,"Время фильтрации потенциометра, с",0x061F,high,RW,uint16,0.001,s,0.000,10.000,0.100,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x861F
+F06.32,F06,"Минимальный ввод кривой HI, кГц",0x0620,high,RW,uint16,0.01,Hz,0.00,F06.34,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8620
+F06.33,F06,"Установка значения минимального ввода кривой HI, %",0x0621,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8621
+F06.34,F06,"Максимальный ввод кривой HI, кГц",0x0622,high,RW,uint16,0.01,Hz,F06.32,100.00,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8622
+F06.35,F06,"Установка значения максимального ввода кривой HI, %",0x0623,high,RW,int16,0.1,%,-100.0,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8623
+F06.36,F06,"Время фильтрации клеммы HI, с",0x0624,high,RW,uint16,0.001,s,0.000,10.000,0.100,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8624
+F07.00,F07,Выбор функции выхода AO1,0x0700,high,RW,uint16,1,,0,13,1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8700
+F07.01,F07,Выбор функции выхода AO2,0x0701,high,RW,uint16,1,,0,13,2,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8701
+F07.02,F07,Функция выхода Y2/HO (когда используется как HO),0x0702,high,RW,uint16,1,,0,13,3,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8702
+F07.03,F07,"Отклонение AO1, %",0x0703,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8703
+F07.04,F07,Усиление AO1,0x0704,high,RW,int16,0.001,,-2.000,2.000,1.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8704
+F07.05,F07,"Время фильтрации AO1, с",0x0705,high,RW,uint16,0.001,s,0.000,10.000,0.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8705
+F07.06,F07,"Отклонение AO2, %",0x0706,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8706
+F07.07,F07,Усиление AO2,0x0707,high,RW,int16,0.001,,-2.000,2.000,1.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8707
+F07.08,F07,"Время фильтрации AO2, с",0x0708,high,RW,uint16,0.001,s,0.000,10.000,0.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8708
+F07.09,F07,"Максимальная частота импульсов выхода HO, кГц",0x0709,high,RW,uint16,0.01,Hz,0.00,100.00,0.01,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8709
+F07.10,F07,"Время фильтрации выхода HO, с",0x070A,high,RW,uint16,0.001,s,0.000,10.000,0.010,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x870A
+F08.00,F08,Выбор типа двигателя 1,0x0800,high,RW,enum16,1,,0,3,0,0=3-фаз. асинхронный двигатель;1=Резерв;2=1-фаз. асинхронный двигатель (без конденсатора);3=1-фаз. асинхронный двигатель (с конденсатором),ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8800
+F08.01,F08,"Номинальная мощность двигателя 1, кВт",0x0801,high,RW,uint16,0.1,min,0.1,1000.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8801
+F08.02,F08,"Номинальное напряжение двигателя 1, В",0x0802,high,RW,uint16,1,min,60,660,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8802
+F08.03,F08,"Номинальная сила тока двигателя 1, А",0x0803,high,RW,uint16,0.1,min,0.1,1500.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8803
+F08.04,F08,"Номинальная частота двигателя 1, Гц",0x0804,high,RW,uint16,0.01,Hz,20.00,F01.08,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8804
+F08.05,F08,"Номинальная скорость вращения двигателя 1, об/мин",0x0805,high,RW,uint16,1,rpm,1,30000,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8805
+F08.08,F08,"Сопротивление статора R1 асинхронного двигателя 1, Ом",0x0808,high,RW,uint16,0.001,Ohm,0.001,65.535,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8808
+F08.09,F08,"Сопротивление статора R2 асинхронного двигателя 1, Ом",0x0809,high,RW,uint16,0.001,Ohm,0.001,65.535,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8809
+F08.10,F08,"Индуктивность рассеяния L1 асинхронного двигателя 1, мГн",0x080A,high,RW,uint16,0.001,mH,0.001,65.535,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x880A
+F08.11,F08,"Индуктивность рассеяния L2 асинхронного двигателя 1, мГн",0x080B,high,RW,uint16,0.001,mH,0.001,65.535,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x880B
+F08.12,F08,"Ток холостого хода асинхронного двигателя 1, А",0x080C,high,RW,uint16,0.1,A,0.1,1500.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x880C
+F08.13,F08,"Коэффициент ослабления поля 1 асинхронного двигателя 1, %",0x080D,high,RW,uint16,0.1,%,0.0,100.0,87.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x880D
+F08.14,F08,"Коэффициент ослабления поля 2 асинхронного двигателя 1, %",0x080E,high,RW,uint16,0.1,%,0.0,100.0,75.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x880E
+F08.15,F08,"Коэффициент ослабления поля 3 асинхронного двигателя 1, %",0x080F,high,RW,uint16,0.1,%,0.0,100.0,70.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x880F
+F08.21,F08,Число полюсов двигателя,0x0815,high,RW,uint16,1,,0,1000,4,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8815
+F08.30,F08,Автонастройка двигателя 1,0x081E,high,RW,enum16,1,,0,2,0,0=Отсутствие автонастройки;1=Настройка без вращения;2=Настройка с вращением,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x881E
+F09.00,F09,Настройка кривой V/F,0x0900,high,RW,enum16,1,,0,13,0,0=Линейная V/F;1=Многоступенчатая V/F;2=1.2 степень V/F;3=1.4 степень V/F;4=1.6 степень V/F;5=1.8 степень V/F;6=2.0 степень V/F;7=V/F полное разделение;8=V/F полуразделение;9=1.2 инверсная кривая мощности V/F;10=1.4 инверсная кривая мощности V/F;11=1.6 инверсная кривая мощности V/F;12=1.8 инверсная кривая мощности V/F;13=2.0 инверсная кривая мощности V/F,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8900
+F09.01,F09,"Повышение крутящего момента (0=фиксировано), %",0x0901,high,RW,uint16,0.1,%,0.0,30.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8901
+F09.02,F09,"Предельная частота повышения крутящего момента, Гц",0x0902,high,RW,uint16,0.01,Hz,0.00,F01.08,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8902
+F09.03,F09,"Многоточечная V/F частота 1 (F1), Гц",0x0903,high,RW,uint16,0.01,Hz,0.00,F09.05,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8903
+F09.04,F09,"Многоточечное V/F напряжение 1 (V1), %",0x0904,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8904
+F09.05,F09,"Многоточечная V/F частота 2 (F2), Гц",0x0905,high,RW,uint16,0.01,Hz,F09.03,F09.05,5.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8905
+F09.06,F09,"Многоточечное V/F напряжение 2 (V2), %",0x0906,high,RW,uint16,0.1,%,0.0,100.0,14.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8906
+F09.07,F09,"Многоточечная V/F частота 3 (F3), Гц",0x0907,high,RW,uint16,0.01,Hz,F09.05,F09.09,25.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8907
+F09.08,F09,"Многоточечное V/F напряжение 3 (V3), %",0x0908,high,RW,uint16,0.1,%,0.0,100.0,50.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8908
+F09.09,F09,"Многоточечная V/F частота 4 (F4), Гц",0x0909,high,RW,uint16,0.01,Hz,F09.07,F08.04,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8909
+F09.10,F09,"Многоточечное V/F напряжение 4 (V4), %",0x090A,high,RW,uint16,0.1,%,0.0,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x890A
+F09.11,F09,"V/F усиление компенсации скольжения, %",0x090B,high,RW,uint16,0.1,%,0.0,300.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x890B
+F09.12,F09,"Усиление компенсации перепада напряжения статора, %",0x090C,high,RW,uint16,0.1,%,0.0,200.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x890C
+F09.13,F09,"Усиление форсировки возбуждения, %",0x090D,high,RW,uint16,0.1,%,0.0,200.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x890D
+F09.14,F09,"Подавление колебаний, %",0x090E,high,RW,uint16,0.1,%,0.0,300.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x890E
+F09.15,F09,Источник напряжения для разделения V/F,0x090F,high,RW,enum16,1,,0,7,0,0=Цифровая настройка (F09.16);1=Потенциометр клавиатуры;2=AI1;3=Многоточечная;4=Импульсная настройка (DI7/HI);5=ПИД;6=AI2;7=AI3,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x890F
+F09.16,F09,"Цифровая настройка частоты для разделения V/F, %",0x0910,high,RW,uint16,0.1,h,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8910
+F09.17,F09,"Время возрастания напряжения при разделении V/F, с",0x0911,high,RW,uint16,0.1,s,0.0,6000.0,0.1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8911
+F10.00,F10,Управление скоростью / крутящим моментом,0x0A00,high,RW,enum16,1,,0,1,0,0=Управление по скорости;1=Управление по вращающему моменту,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A00
+F10.01,F10,Низкоскоростная ASR. Пропорциональное усиление Kp1,0x0A01,high,RW,uint16,0.1,,0.0,100.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A01
+F10.02,F10,"Низкоскоростная ASR. Время интегрирования Ti1, с",0x0A02,high,RW,uint16,0.001,s,0.001,30.000,0.050,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A02
+F10.03,F10,"Частота переключения ASR 1, Гц",0x0A03,high,RW,uint16,0.01,Hz,0.00,F10.06,5.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A03
+F10.04,F10,Высокоскоростная ASR. Пропорциональное усиление Kp2,0x0A04,high,RW,uint16,0.1,,1.0,100.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A04
+F10.05,F10,"Высокоскоростная ASR. Время интегрирования Ti2, с",0x0A05,high,RW,uint16,0.001,s,0.001,30.000,0.100,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A05
+F10.06,F10,"Частота 2 переключения ASR, Гц",0x0A06,high,RW,uint16,0.01,Hz,F10.03,F01.08,10.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A06
+F10.07,F10,"Время фильтрации входа ASR, мс",0x0A07,high,RW,uint16,0.1,ms,0.0,500.0,0.3,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A07
+F10.08,F10,"Время фильтрации выхода ASR, мс",0x0A08,high,RW,uint16,0.1,ms,0.0,500.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A08
+F10.09,F10,"Векторное управление усилением проскальзывания, %",0x0A09,high,RW,uint16,0.1,%,50.0,200.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A09
+F10.10,F10,"Цифровая уст. крутящего момента. Верх. предел управления по скорости, %",0x0A0A,high,RW,uint16,0.1,%,80.0,200.0,165.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A0A
+F10.11,F10,Регулировка возбуждения. Пропорциональное усиление Kp1,0x0A0B,high,RW,uint16,0.01,,0.00,10.00,0.50,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A0B
+F10.12,F10,"Регулировка возбуждения. Интегральное усиление Ti1, мс",0x0A0C,high,RW,uint16,0.1,ms,0.0,3000.0,10.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A0C
+F10.13,F10,Регулировка крутящего момента. Пропорциональное усиление Kp2,0x0A0D,high,RW,uint16,0.01,,0.00,10.00,0.50,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A0D
+F10.14,F10,"Регулировка крутящего момента. Интегральное усиление Ti2, мс",0x0A0E,high,RW,uint16,0.1,ms,0.0,3000.0,10.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A0E
+F10.16,F10,Настройка источника вращающего момента при управлении крутящим моментом,0x0A10,high,RW,enum16,1,,0,6,0,0=Установлено F10.17;1=Потенциометр клавиатуры;2=Аналоговый вход AI1;3=Аналоговый вход AI2;4=Аналоговый вход AI3;5=Импульсный вход DI7/HI;6=Настройка через канал связи,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A10
+F10.17,F10,"Цифровая настройка крутящего момента, %",0x0A11,high,RW,int16,0.1,%,-200.0,200.0,50.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A11
+F10.18,F10,"Ограничение скорости вперед при упр. крутящим моментом, Гц",0x0A12,high,RW,uint16,0.01,Hz,0.00,F01.08,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A12
+F10.19,F10,"Ограничение скорости реверса при упр. крутящим моментом, Гц",0x0A13,high,RW,uint16,0.01,Hz,0.00,F01.08,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A13
+F10.20,F10,"Установка времени ускорения крутящего момента, с",0x0A14,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A14
+F10.21,F10,"Установка времени замедления крутящего момента, с",0x0A15,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A15
+F10.22,F10,"Компенсация статического трения в крутящем моменте, %",0x0A16,high,RW,uint16,0.1,%,0.0,100.0,5.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A16
+F10.23,F10,"Диапазон частот статического трения, Гц",0x0A17,high,RW,uint16,0.01,Hz,0.00,20.00,1.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A17
+F10.24,F10,"Компенсация трения скольжения в крутящем моменте, %",0x0A18,high,RW,uint16,0.1,%,0.0,100.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A18
+F10.25,F10,"Коэффициент компенсации инерции вращения, %",0x0A19,high,RW,uint16,0.1,%,50.0,200.0,10.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A19
+F10.26,F10,Источник максимальной частоты при управлении крутящим моментом,0x0A1A,high,RW,enum16,1,h,0,5,0,0=Установка F10.18 и F10.19;1=Потенциометр клавиатуры;2=Аналоговый вход AI1;3=Аналоговый вход AI2;4=Аналоговый вход AI3;5=Импульсный вход DI7/HI,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8A1A
+F11.00,F11,Контроль ограничения тока,0x0B00,high,RW,enum16,1,,0,2,2,"0=Ограничение тока неактивно;1=Ограничение тока, режим 1;2=Ограничение тока, режим 2",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B00
+F11.01,F11,"Ограничение тока, %",0x0B01,high,RW,uint16,0.1,%,100.0,200.0,150.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B01
+F11.02,F11,"Время падения частоты (ограничение тока при постоянной скорости), c",0x0B02,high,RW,uint16,0.1,h,0.0,6000.0,5.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B02
+F11.03,F11,"Пропорциональное усиление метода 2 ограничения тока, %",0x0B03,high,RW,uint16,0.1,%,0.1,100.0,3.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B03
+F11.04,F11,"Время интегрирования метода 2 ограничения тока, c",0x0B04,high,RW,uint16,0.01,s,0.00,10.00,10.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B04
+F11.05,F11,Защита от перенапряжения при потере скорости,0x0B05,high,RW,enum16,1,,0,2,1,0=Неактивно;1=Метод 1;2=Метод 2,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B05
+F11.06,F11,"Значение напряжения защиты от перенапряжения, В",0x0B06,high,RW,uint16,1,V,600,800,730,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B06
+F11.07,F11,"Защита от перенапряжения, метод 2 (пропорциональное усиление), %",0x0B07,high,RW,uint16,0.1,%,0.1,100.0,3.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B07
+F11.08,F11,"Защита от перенапряжения, метод 2 (время интегрирования), с",0x0B08,high,RW,uint16,0.001,s,0.000,1.000,0.010,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B08
+F11.10,F11,Защитное действие 1,0x0B0A,high,RW,uint16,1,,00000,33333,03330,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B0A
+F11.11,F11,Защитное действие 2,0x0B0B,high,RW,uint16,1,,00000,33333,00000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B0B
+F11.12,F11,Защитное действие 3,0x0B0C,high,RW,uint16,1,,00,33,30,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B0C
+F11.14,F11,Выбор частоты для продолжения функционирования при неполадках,0x0B0E,high,RW,enum16,1,h,0,4,0,0=Работа при текущей частоте;1=Настройка частоты;2=Верхний предел частоты;3=Нижний предел частоты;4=В случае неисправности работа на запасной частоте,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B0E
+F11.15,F11,"Запасная частота в случае неисправности, Гц",0x0B0F,high,RW,uint16,0.01,Hz,0.00,F01.08,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B0F
+F11.17,F11,"Защитный интервал перегрузки двигателя, c",0x0B11,high,RW,uint16,0.1,s,30.0,300.0,60.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B11
+F11.18,F11,Сигнал о перегрузке,0x0B12,high,RW,uint16,1,,00,11,00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B12
+F11.19,F11,"Порог срабатываниясигнала перегрузки, %",0x0B13,high,RW,uint16,0.1,%,20.0,200.0,130.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B13
+F11.20,F11,"Время работы сигнала перегрузки, когда превышен лимит, с",0x0B14,high,RW,uint16,0.1,s,0.1,60.0,5.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B14
+F11.21,F11,"Порог величины сигнала о перегреве ПЧ, °C",0x0B15,high,RW,uint16,0.1,degC,50.0,200.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B15
+F11.22,F11,"Уровень обнаружения потери питания, %",0x0B16,high,RW,uint16,0.1,%,5.0,100.0,20.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B16
+F11.23,F11,"Время обнаружения потери питания, с",0x0B17,high,RW,uint16,0.1,s,0.1,60.0,5.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B17
+F11.24,F11,Выбор действия при кратковременном сбое питания,0x0B18,high,RW,enum16,1,,0,1,0,0=Неактивно;1=Активно,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B18
+F11.25,F11,"Время замедления при кратковременном сбое питания, с",0x0B19,high,RW,uint16,0.1,s,0.0,6000.0,5.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B19
+F11.26,F11,Быстрое ограничение тока,0x0B1A,high,RW,enum16,1,,0,1,0,0=Неактивно;1=Активно,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B1A
+F11.27,F11,Количество автоматических сбросов,0x0B1B,high,RW,uint16,1,,0,20,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B1B
+F11.28,F11,"Интервал автоматического сброса, с",0x0B1C,high,RW,uint16,0.1,s,0.1,100.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B1C
+F11.29,F11,DO действие во время неполадки авто сброса,0x0B1D,high,RW,enum16,1,,0,1,0,0=Не срабатывает;1=Срабатывает,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B1D
+F11.30,F11,"Напряжение на шине при мгновенном прекращении питания, %",0x0B1E,high,RW,uint16,0.1,%,60.0,F11.31,80.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B1E
+F11.31,F11,"Восстанавливающее напряжение при мновенном прекращении питания, %",0x0B1F,high,RW,uint16,0.1,%,F11.30,100.0,85.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B1F
+F11.32,F11,"Время запуска подачи напряжения при мгновенном прекращении питания, c",0x0B20,high,RW,uint16,0.01,s,0.01,10.00,0.10,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B20
+F11.33,F11,"Усиление Kp при мгновенном прекращении питания, %",0x0B21,high,RW,uint16,0.1,%,0.1,100.0,40.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B21
+F11.34,F11,"Время интегрирования при мгновенном прекращении питания, c",0x0B22,high,RW,uint16,0.01,s,0.00,10.00,0.10,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B22
+F11.35,F11,Тип датчика температуры двигателя,0x0B23,high,RW,enum16,1,,0,2,0,0=Отключен;1=PT100;2=PT1000,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B23
+F11.36,F11,Порт источника тока датчика температуры двигателя,0x0B24,high,RW,enum16,1,,0,2,0,0=Отключен;1=AO1;2=AO2,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B24
+F11.37,F11,Входные каналы датчика температуры двигателя,0x0B25,high,RW,enum16,1,,0,2,0,0=Отключен;1=AI1;2=AI2,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B25
+F11.38,F11,"Порог для предупреждения о температуре двигателя, °C",0x0B26,high,RW,uint16,1,degC,0,200,90,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B26
+F11.39,F11,"Порог для защитного действия при температуре двигателя, °C",0x0B27,high,RW,uint16,1,degC,0,200,90,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8B27
+F12.00,F12,"Ссылка 0, %",0x0C00,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C00
+F12.01,F12,"Ссылка 1, %",0x0C01,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C01
+F12.02,F12,"Ссылка 2, %",0x0C02,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C02
+F12.03,F12,"Ссылка 3, %",0x0C03,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C03
+F12.04,F12,"Ссылка 4, %",0x0C04,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C04
+F12.05,F12,"Ссылка 5, %",0x0C05,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C05
+F12.06,F12,"Ссылка 6, %",0x0C06,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C06
+F12.07,F12,"Ссылка 7, %",0x0C07,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C07
+F12.08,F12,"Ссылка 8, %",0x0C08,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C08
+F12.09,F12,"Ссылка 9, %",0x0C09,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C09
+F12.10,F12,"Ссылка 10, %",0x0C0A,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C0A
+F12.11,F12,"Ссылка 11, %",0x0C0B,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C0B
+F12.12,F12,"Ссылка 12, %",0x0C0C,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C0C
+F12.13,F12,"Ссылка 13, %",0x0C0D,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C0D
+F12.14,F12,"Ссылка 14, %",0x0C0E,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C0E
+F12.15,F12,"Ссылка 15, %",0x0C0F,high,RW,int16,0.1,%,-100.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C0F
+F12.16,F12,Источник ссылки 0,0x0C10,high,RW,enum16,1,,0,6,0,0=Цифровая настройка (F12.00);1=Потенциометр клавиатуры;2=AI1;3=Процесс ПИД;4=Импульсный вход X7/HI;5=AI2;6=AI3,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C10
+F12.17,F12,Режим работы простого ПЛК,0x0C11,high,RW,uint16,1,,0000,1132,0000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C11
+F12.18,F12,"Длительность работы шага 0, с(мин)",0x0C12,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C12
+F12.19,F12,"Длительность работы шага 1, с(мин)",0x0C13,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C13
+F12.20,F12,"Длительность работы шага 2, с(мин)",0x0C14,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C14
+F12.21,F12,"Длительность работы шага 3, с(мин)",0x0C15,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C15
+F12.22,F12,"Длительность работы шага 4, с(мин)",0x0C16,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C16
+F12.23,F12,"Длительность работы шага 5, с(мин)",0x0C17,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C17
+F12.24,F12,"Длительность работы шага 6, с(мин)",0x0C18,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C18
+F12.25,F12,"Длительность работы шага 7, с(мин)",0x0C19,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C19
+F12.26,F12,"Длительность работы шага 8, с(мин)",0x0C1A,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C1A
+F12.27,F12,"Длительность работы шага 9, с(мин)",0x0C1B,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C1B
+F12.28,F12,"Длительность работы шага 10, с(мин)",0x0C1C,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C1C
+F12.29,F12,"Длительность работы шага 11, с(мин)",0x0C1D,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C1D
+F12.30,F12,"Длительность работы шага 12, с(мин)",0x0C1E,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C1E
+F12.31,F12,"Длительность работы шага 13, с(мин)",0x0C1F,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C1F
+F12.32,F12,"Длительность работы шага 14, с(мин)",0x0C20,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C20
+F12.33,F12,"Длительность работы шага 15, с(мин)",0x0C21,high,RW,uint16,0.1,min,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C21
+F12.34,F12,"Время ускорения/замедления простого ПЛК, ссылка 0",0x0C22,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C22
+F12.35,F12,"Время ускорения/замедления простого ПЛК, ссылка 1",0x0C23,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C23
+F12.36,F12,"Время ускорения/замедления простого ПЛК, ссылка 2",0x0C24,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C24
+F12.37,F12,"Время ускорения/замедления простого ПЛК, ссылка 3",0x0C25,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C25
+F12.38,F12,"Время ускорения/замедления простого ПЛК, ссылка 4",0x0C26,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C26
+F12.39,F12,"Время ускорения/замедления простого ПЛК, ссылка 5",0x0C27,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C27
+F12.40,F12,"Время ускорения/замедления простого ПЛК, ссылка 6",0x0C28,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C28
+F12.41,F12,"Время ускорения/замедления простого ПЛК, ссылка 7",0x0C29,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C29
+F12.42,F12,"Время ускорения/замедления простого ПЛК, ссылка 8",0x0C2A,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C2A
+F12.43,F12,"Время ускорения/замедления простого ПЛК, ссылка 9",0x0C2B,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C2B
+F12.44,F12,"Время ускорения/замедления простого ПЛК, ссылка 10",0x0C2C,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C2C
+F12.45,F12,"Время ускорения/замедления простого ПЛК, ссылка 11",0x0C2D,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C2D
+F12.46,F12,"Время ускорения/замедления простого ПЛК, ссылка 12",0x0C2E,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C2E
+F12.47,F12,"Время ускорения/замедления простого ПЛК, ссылка 13",0x0C2F,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C2F
+F12.48,F12,"Время ускорения/замедления простого ПЛК, ссылка 14",0x0C30,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C30
+F12.49,F12,"Время ускорения/замедления простого ПЛК, ссылка 15",0x0C31,high,RW,uint16,1,,0,3,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C31
+F12.50,F12,Выбор функции многоступенчатой команды UP/DOWN,0x0C32,high,RW,uint16,1,,00,11,00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C32
+F12.51,F12,"Скорость функции многоступенчатой команды UP/DOWN, %",0x0C33,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8C33
+F13.00,F13,Настройка ПИД,0x0D00,high,RW,enum16,1,,0,7,0,"0=F13.01, цифровая настройка;1=Потенциометр клавиатуры;2=AI1;3=Через канал связи;4=Многоступенчатая;5=Импульсный вход DI7/HI;6=AI2;7=AI3",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D00
+F13.01,F13,"Цифровая настройка ПИД, %",0x0D01,high,RW,uint16,0.1,%,0.0,100.0,50.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D01
+F13.02,F13,Обратная связь ПИД,0x0D02,high,RW,enum16,1,,0,8,0,"0=AI1;1=AI2;2=Через канал связи;3=AI1 + AI2;4=AI1 – AI2;5=Max (AI1, AI2);6=Min (AI1, AI2);7=Импульсный вход DI7/HI;8=AI3",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D02
+F13.03,F13,Диапазон установок обратной связи ПИД,0x0D03,high,RW,uint16,0.1,,0.0,6000.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D03
+F13.04,F13,Направление воздействия ПИД,0x0D04,high,RW,enum16,1,,0,1,0,0=Прямое действие;1=Обратное действие,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D04
+F13.05,F13,"Настройки времени фильтрации ПИД, с",0x0D05,high,RW,uint16,0.001,s,0.000,10.000,0.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D05
+F13.06,F13,"Время фильтрации обратной связи ПИД, с",0x0D06,high,RW,uint16,0.001,s,0.000,10.000,0.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D06
+F13.07,F13,"Время фильтрации выхода ПИД, с",0x0D07,high,RW,uint16,0.001,s,0.000,10.000,0.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D07
+F13.08,F13,Пропорциональное усиление Kp1,0x0D08,high,RW,uint16,0.1,,0.0,100.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D08
+F13.09,F13,"Время интегрирования Ti1, с",0x0D09,high,RW,uint16,0.01,s,0.01,10.00,0.10,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D09
+F13.10,F13,"Дифференциальное время Td1, с",0x0D0A,high,RW,uint16,0.001,s,0.000,10.000,0.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D0A
+F13.11,F13,Пропорциональное усиление Kp2,0x0D0B,high,RW,uint16,0.1,,0.0,100.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D0B
+F13.12,F13,"Время интегрирования Ti2, с",0x0D0C,high,RW,uint16,0.01,s,0.01,10.00,0.10,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D0C
+F13.13,F13,"Дифференциальное время Td2, с",0x0D0D,high,RW,uint16,0.001,s,0.000,10.000,0.000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D0D
+F13.14,F13,Переключение параметра ПИД,0x0D0E,high,RW,enum16,1,,0,2,0,"0=Нет переключения, определяется параметрами Kp1, Ti1 и Td1;1=Автопереключение на основе входного смещения;2=Переключение через вывод",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D0E
+F13.15,F13,"Отклонение параметра переключения ПИД 1, %",0x0D0F,high,RW,uint16,0.1,%,0.0,100.0,20.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D0F
+F13.16,F13,"Отклонение параметра переключения ПИД 2, %",0x0D10,high,RW,uint16,0.1,%,0.0,100.0,80.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D10
+F13.17,F13,"Предел смещения ПИД, %",0x0D11,high,RW,uint16,0.1,%,0.0,100.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D11
+F13.18,F13,Свойства интегрирования ПИД,0x0D12,high,RW,uint16,1,,00,11,00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D12
+F13.19,F13,"Предел дифференцирования ПИД, %",0x0D13,high,RW,uint16,0.1,%,0.0,100.0,0.5,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D13
+F13.20,F13,"Начальная величина ПИД, %",0x0D14,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D14
+F13.21,F13,"Время удержания начальной величины ПИД, с",0x0D15,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D15
+F13.22,F13,"Верхний предел выходной частоты ПИД, %",0x0D16,high,RW,uint16,0.1,h,F13.23,100.0,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D16
+F13.23,F13,"Нижний предел выходной частоты ПИД, %",0x0D17,high,RW,int16,0.1,h,-100.0,F13.22,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D17
+F13.24,F13,"Обнаружение потери обратной связи ПИД, %",0x0D18,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D18
+F13.25,F13,"Время обнаружения потери обратной связи ПИД, с",0x0D19,high,RW,uint16,0.1,s,0.0,30.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D19
+F13.26,F13,Выбор операции ПИД,0x0D1A,high,RW,uint16,1,,000,111,000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D1A
+F13.27,F13,"Скорость ПИД цифр. настр. UP/DOWN, %",0x0D1B,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8D1B
+F13.28,F13,"Верхнее значение потери обратной связи ПИД, %",0x0D1C,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8D1C; Только в A650M (ред. 3, 2023)"
+F13.29,F13,"Время обнаружения потери обратной связи ПИД, с",0x0D1D,high,RW,uint16,0.1,s,0.0,30.0,1.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8D1D; Только в A650M (ред. 3, 2023)"
+F13.30,F13,Источник верхнего предела ПИД,0x0D1E,high,RW,enum16,1,,0,5,0,0=F13.22;1=F13.22 • VP;2=F13.22 • AI1;3=F13.22 • AI2;4=F13.22 • HI;5=F13.22 • AI3,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8D1E; Только в A650M (ред. 3, 2023)"
+F13.31,F13,Источник верхнего предела ПИД,0x0D1F,high,RW,enum16,1,,0,5,0,0=F13.23;1=F13.23 • VP;2=F13.23 • AI1;3=F13.23 • AI2;4=F13.23 • HI;5=F13.23 • AI3,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x8D1F; Только в A650M (ред. 3, 2023)"
+F14.00,F14,Режим установки частоты колебаний,0x0E00,high,RW,enum16,1,h,0,1,0,0=Относительно настроек частоты;1=Относительно максимальной частоты,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E00
+F14.01,F14,"Амплитуда частоты колебаний, %",0x0E01,high,RW,uint16,0.1,h,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E01
+F14.02,F14,"Амплитуда частоты скачка, %",0x0E02,high,RW,uint16,0.1,h,0.0,50.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E02
+F14.03,F14,"Время нарастания частоты колебаний, с",0x0E03,high,RW,uint16,0.1,h,0.0,6000.0,5.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E03
+F14.04,F14,"Время падения частоты колебаний, с",0x0E04,high,RW,uint16,0.1,h,0.0,6000.0,5.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E04
+F14.05,F14,"Заданная длина, м",0x0E05,high,RW,uint16,1,,0,65535,1000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E05
+F14.06,F14,Количество импульсов в метре,0x0E06,high,RW,uint16,0.1,,0.0,6553.5,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E06
+F14.07,F14,"Команда, когда длина достигнута",0x0E07,high,RW,enum16,1,,0,1,0,0=Не останавливать работу;1=Стоп,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E07
+F14.08,F14,Настройка значения счета,0x0E08,high,RW,uint16,1,,1,65535,1000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E08
+F14.09,F14,Определенная величина счета,0x0E09,high,RW,uint16,1,,1,65535,1000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E09
+F14.10,F14,"Частота пробуждения, Гц",0x0E0A,high,RW,uint16,0.01,Hz,F14.12,F01.08,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E0A
+F14.11,F14,"Время задержки пробуждения, c",0x0E0B,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E0B
+F14.12,F14,"Частота покоя, Гц",0x0E0C,high,RW,uint16,0.01,Hz,0.00,F14.10,0.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E0C
+F14.13,F14,"Время задержки покоя, c",0x0E0D,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E0D
+F14.14,F14,Выбор режима пробуждения,0x0E0E,high,RW,enum16,1,,0,1,0,0=Пробуждение по частоты;1=Пробуждение по давлению,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E0E
+F14.15,F14,Выбор режима сна,0x0E0F,high,RW,enum16,1,,0,1,0,0=Сон от частоты;1=Сон по давлению,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E0F
+F14.16,F14,Источник обратной связи по напряжению,0x0E10,high,RW,enum16,1,,0,1,0,0=AI1;1=AI2;2=Импульсный вход DI7/HI;3=AI3,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E10
+F14.17,F14,"Давление пробуждения, %",0x0E11,high,RW,uint16,0.1,%,0.0,F14.18,10.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E11
+F14.18,F14,"Давление сна, %",0x0E12,high,RW,uint16,0.1,%,F14.17,100.0,50.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8E12
+F15.00,F15,"Скорость передачи данных, бод",0x0F00,high,RW,enum16,1,,0,5,1,0=4 800;1=9 600;2=19 200;3=38 400;4=57 600;5=115 200,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F00
+F15.01,F15,Формат данных,0x0F01,high,RW,enum16,1,,0,3,0,"0=Отсутствие проверки, формат 1-8-N-2 для RTU;1=Проверка четности, формат 1-8-E-2 для RTU;2=Проверка нечетности, формат 1-8-O-1 для RTU;3=Отсутствие проверки, формат 1-8-N-1 для RTU",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F01
+F15.02,F15,Локальный адрес,0x0F02,high,RW,uint16,1,,0,247,1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F02
+F15.03,F15,"Коммуникационный тайм-аут, c",0x0F03,high,RW,uint16,0.1,s,0.0,60.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F03
+F15.04,F15,"Время задержки ответа, мc",0x0F04,high,RW,uint16,1,,0,200,1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F04
+F15.05,F15,Коммуникационный режим «Ведущий-ведомый»,0x0F05,high,RW,enum16,1,,0,1,0,0=ПЧ «ведомый»;1=ПЧ «ведущий»,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F05
+F15.06,F15,Источник передачи данных «ведущему» устройству,0x0F06,high,RW,enum16,1,,0,1,0,0=Настройка частоты;1=Текущая рабочая частота,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F06
+F15.07,F15,"Информация о возврате, когда происходит коммуникационная ошибка",0x0F07,high,RW,enum16,1,,0,1,0,0=Нет возврата;1=Возврат,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F07
+F15.08,F15,Цифровой атрибут выходной частоты группы U00.00,0x0F08,high,RW,enum16,1,h,0,1,0,0=Положительные и отрицательные значения;1=Абсолютная величина,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8F08
+F16.00,F16,Настройка клавиши MF.K,0x1000,high,RW,enum16,1,,0,4,1,0=Отсутствие функции;1=Толчковая подача;2=Переключение вперед/назад;3=Перемещение источника команды «Пуск»;4=Поворот толчка,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9000
+F16.01,F16,Отображение рабочего состояния клавиатуры,0x1001,high,RW,uint16,1,,000,311,001,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9001
+F16.02,F16,Выбор блокировки клавиш,0x1002,high,RW,enum16,1,,0,4,0,"0=Отсутствие блокировки;1=Полная блокировка;2=Блокировка клавиш, кроме ПУСК, СТОП/СБРОС;3=Блокировка клавиш, кроме СТОП/СБРОС;4=Блокировка клавиш, кроме >>",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9002
+F16.03,F16,Отображение на дисплее параметров настройки 1 в рабочем состоянии,0x1003,high,RW,uint16,1,,0,37,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9003
+F16.04,F16,Отображение на дисплее параметров настройки 2 в рабочем состоянии,0x1004,high,RW,uint16,1,,0,37,6,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9004
+F16.05,F16,Отображение на дисплее параметров настройки 3 в рабочем состоянии,0x1005,high,RW,uint16,1,,0,37,3,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9005
+F16.06,F16,Отображение на дисплее параметров настройки 4 в рабочем состоянии,0x1006,high,RW,uint16,1,,0,37,2,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9006
+F16.07,F16,Отображение на дисплее параметров настройки 1 в состоянии останова,0x1007,high,RW,uint16,1,,0,37,1,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9007
+F16.08,F16,Отображение на дисплее параметров настройки 2 в состоянии останова,0x1008,high,RW,uint16,1,,0,37,6,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9008
+F16.09,F16,Отображение на дисплее параметров настройки 3 в состоянии останова,0x1009,high,RW,uint16,1,,0,37,15,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9009
+F16.10,F16,Отображение на дисплее параметров настройки 4 в состоянии останова,0x100A,high,RW,uint16,1,,0,37,16,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x900A
+F16.11,F16,Коэффициент отображения скорости,0x100B,high,RW,uint16,0.01,,0.00,100.00,1.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x900B
+F16.12,F16,"Коэффициент отображения мощности, %",0x100C,high,RW,uint16,0.1,%,0.00,300.00,100.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x900C
+F17.00,F17,"Код функции, определяемой пользователем 0",0x1100,high,RW,uint16,1,,0,1612,3,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9100
+F17.01,F17,"Код функции, определяемой пользователем 1",0x1101,high,RW,uint16,1,,0,1612,101,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9101
+F17.02,F17,"Код функции, определяемой пользователем 2",0x1102,high,RW,uint16,1,,0,1612,102,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9102
+F17.03,F17,"Код функции, определяемой пользователем 3",0x1103,high,RW,uint16,1,,0,1612,108,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9103
+F17.04,F17,"Код функции, определяемой пользователем 4",0x1104,high,RW,uint16,1,,0,1612,109,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9104
+F17.05,F17,"Код функции, определяемой пользователем 5",0x1105,high,RW,uint16,1,,0,1612,200,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9105
+F17.06,F17,"Код функции, определяемой пользователем 6",0x1106,high,RW,uint16,1,,0,1612,201,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9106
+F17.07,F17,"Код функции, определяемой пользователем 7",0x1107,high,RW,uint16,1,,0,1612,212,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9107
+F17.08,F17,"Код функции, определяемой пользователем 8",0x1108,high,RW,uint16,1,,0,1612,300,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9108
+F17.09,F17,"Код функции, определяемой пользователем 9",0x1109,high,RW,uint16,1,,0,1612,301,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9109
+F17.10,F17,"Код функции, определяемой пользователем 10",0x110A,high,RW,uint16,1,,0,1612,400,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x910A
+F17.11,F17,"Код функции, определяемой пользователем 11",0x110B,high,RW,uint16,1,,0,1612,401,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x910B
+F17.12,F17,"Код функции, определяемой пользователем 12",0x110C,high,RW,uint16,1,,0,1612,402,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x910C
+F17.13,F17,"Код функции, определяемой пользователем 13",0x110D,high,RW,uint16,1,,0,1612,403,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x910D
+F17.14,F17,"Код функции, определяемой пользователем 14",0x110E,high,RW,uint16,1,,0,1612,502,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x910E
+F17.15,F17,"Код функции, определяемой пользователем 15",0x110F,high,RW,uint16,1,,0,1612,801,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x910F
+F17.16,F17,"Код функции, определяемой пользователем 16",0x1110,high,RW,uint16,1,,0,1612,802,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9110
+F17.17,F17,"Код функции, определяемой пользователем 17",0x1111,high,RW,uint16,1,,0,1612,803,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9111
+F17.18,F17,"Код функции, определяемой пользователем 18",0x1112,high,RW,uint16,1,,0,1612,804,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9112
+F17.19,F17,"Код функции, определяемой пользователем 19",0x1113,high,RW,uint16,1,,0,1612,805,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9113
+F17.20,F17,"Код функции, определяемой пользователем 20",0x1114,high,RW,uint16,1,,0,1612,830,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9114
+F17.21,F17,"Код функции, определяемой пользователем 21",0x1115,high,RW,uint16,1,,0,1612,1110,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9115
+F17.22,F17,"Код функции, определяемой пользователем 22",0x1116,high,RW,uint16,1,,0,1612,1300,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9116
+F17.23,F17,"Код функции, определяемой пользователем 23",0x1117,high,RW,uint16,1,,0,1612,1301,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9117
+F17.24,F17,"Код функции, определяемой пользователем 24",0x1118,high,RW,uint16,1,,0,1612,1302,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9118
+F17.25,F17,"Код функции, определяемой пользователем 25",0x1119,high,RW,uint16,1,,0,1612,1308,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9119
+F17.26,F17,"Код функции, определяемой пользователем 26",0x111A,high,RW,uint16,1,,0,1612,1309,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x911A
+F17.27,F17,"Код функции, определяемой пользователем 27",0x111B,high,RW,uint16,1,,0,1612,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x911B
+F17.28,F17,"Код функции, определяемой пользователем 28",0x111C,high,RW,uint16,1,,0,1612,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x911C
+F17.29,F17,"Код функции, определяемой пользователем 29",0x111D,high,RW,uint16,1,,0,1612,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x911D; Fixed duplicate code F17.28 -> F17.29 at 0x111D (EXE v1.2.7.0 bug)
+F18.00,F18,Выбор типа двигателя 2,0x1200,high,RW,enum16,1,,0,3,0,0=3-фаз. асинхронный двигатель;1=Резерв;2=1-фаз. асинхронный двигатель (без конденсатора);3=1-фаз. асинхронный двигатель (с конденсатором),ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9200; Только в A650M (ред. 3, 2023)"
+F18.01,F18,"Номинальная мощность двигателя 2, кВт",0x1201,high,RW,uint16,0.1,min,0.1,1000.0,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9201; Только в A650M (ред. 3, 2023)"
+F18.02,F18,"Номинальное напряжение двигателя 2, В",0x1202,high,RW,uint16,1,min,60,660,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9202; Только в A650M (ред. 3, 2023)"
+F18.03,F18,"Номинальная сила тока двигателя 2, А",0x1203,high,RW,uint16,0.1,min,0.1,1500.0,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9203; Только в A650M (ред. 3, 2023)"
+F18.04,F18,"Номинальная частота двигателя 2, Гц",0x1204,high,RW,uint16,0.01,Hz,20.00,F01.08,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9204; Только в A650M (ред. 3, 2023)"
+F18.05,F18,"Номинальная скорость вращения двигателя 2, об/мин",0x1205,high,RW,uint16,1,rpm,1,30000,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9205; Только в A650M (ред. 3, 2023)"
+F18.08,F18,"Сопротивление статора R1 асинхронного двигателя 2, Ом",0x1208,high,RW,uint16,0.001,Ohm,0.001,65.535,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9208; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x1206 -> 0x1208 (Appendix A.4.3 formula)"
+F18.09,F18,"Сопротивление статора R2 асинхронного двигателя 2, Ом",0x1209,high,RW,uint16,0.001,Ohm,0.001,65.535,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9209; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x1207 -> 0x1209 (Appendix A.4.3 formula)"
+F18.10,F18,"Индуктивность рассеяния L1 асинхронного двигателя 2, мГн",0x120A,high,RW,uint16,0.001,mH,0.001,65.535,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x920A; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x1208 -> 0x120A (Appendix A.4.3 formula)"
+F18.11,F18,"Индуктивность рассеяния L2 асинхронного двигателя 2, мГн",0x120B,high,RW,uint16,0.001,mH,0.001,65.535,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x920B; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x1209 -> 0x120B (Appendix A.4.3 formula)"
+F18.12,F18,"Ток холостого хода асинхронного двигателя 2, А",0x120C,high,RW,uint16,0.1,A,0.1,1500.0,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x920C; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x120A -> 0x120C (Appendix A.4.3 formula)"
+F18.13,F18,"Коэффициент ослабления поля 1 асинхронного двигателя 2, %",0x120D,high,RW,uint16,0.1,%,0.0,100.0,87.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x920D; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x120B -> 0x120D (Appendix A.4.3 formula)"
+F18.14,F18,"Коэффициент ослабления поля 2 асинхронного двигателя 2, %",0x120E,high,RW,uint16,0.1,%,0.0,100.0,75.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x920E; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x120C -> 0x120E (Appendix A.4.3 formula)"
+F18.15,F18,"Коэффициент ослабления поля 3 асинхронного двигателя 2, %",0x120F,high,RW,uint16,0.1,%,0.0,100.0,70.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x920F; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x120D -> 0x120F (Appendix A.4.3 formula)"
+F18.21,F18,Число полюсов двигателя 2,0x1215,high,RW,uint16,1,,0,1000,4,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9215; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x1213 -> 0x1215 (Appendix A.4.3 formula)"
+F18.30,F18,Автонастройка двигателя 2,0x121E,high,RW,enum16,1,,0,2,0,0=Отсутствие автонастройки;1=Настройка без вращения;2=Настройка с вращением,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x921E; Только в A650M (ред. 3, 2023); Corrected legacy EXE RAM address 0x121C -> 0x121E (Appendix A.4.3 formula)"
+F19.00,F19,Настройка кривой V/F,0x1300,high,RW,enum16,1,,0,13,0,0=Линейная V/F;1=Многоступенчатая V/F;2=1.2 степень V/F;3=1.4 степень V/F;4=1.6 степень V/F;5=1.8 степень V/F;6=2.0 степень V/F;7=V/F полное разделение;8=V/F полуразделение;9=1.2 инверсная кривая мощности V/F;10=1.4 инверсная кривая мощности V/F;11=1.6 инверсная кривая мощности V/F;12=1.8 инверсная кривая мощности V/F;13=2.0 инверсная кривая мощности V/F,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9300; Только в A650M (ред. 3, 2023)"
+F19.01,F19,"Повышение крутящего момента (0=фиксировано), %",0x1301,high,RW,uint16,0.1,%,0.0,30.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9301; Только в A650M (ред. 3, 2023)"
+F19.02,F19,"Предельная частота повышения крутящего момента, Гц",0x1302,high,RW,uint16,0.01,Hz,0.00,F01.08,0.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9302; Только в A650M (ред. 3, 2023)"
+F19.03,F19,"Многоточечная V/F частота 1 (F1), Гц",0x1303,high,RW,uint16,0.01,Hz,0.00,F19.05,0.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9303; Только в A650M (ред. 3, 2023)"
+F19.04,F19,"Многоточечное V/F напряжение 1 (V1), %",0x1304,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9304; Только в A650M (ред. 3, 2023)"
+F19.05,F19,"Многоточечная V/F частота 2 (F2), Гц",0x1305,high,RW,uint16,0.01,Hz,F19.03,F19.05,5.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9305; Только в A650M (ред. 3, 2023)"
+F19.06,F19,"Многоточечное V/F напряжение 2 (V2), %",0x1306,high,RW,uint16,0.1,%,0.0,100.0,14.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9306; Только в A650M (ред. 3, 2023)"
+F19.07,F19,"Многоточечная V/F частота 3 (F3), Гц",0x1307,high,RW,uint16,0.01,Hz,F19.05,F19.09,25.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9307; Только в A650M (ред. 3, 2023)"
+F19.08,F19,"Многоточечное V/F напряжение 3 (V3), %",0x1308,high,RW,uint16,0.1,%,0.0,100.0,50.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9308; Только в A650M (ред. 3, 2023)"
+F19.09,F19,"Многоточечная V/F частота 4 (F4), Гц",0x1309,high,RW,uint16,0.01,Hz,F19.07,F08.04,50.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9309; Только в A650M (ред. 3, 2023)"
+F19.10,F19,"Многоточечное V/F напряжение 4 (V4), %",0x130A,high,RW,uint16,0.1,%,0.0,100.0,100.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x930A; Только в A650M (ред. 3, 2023)"
+F19.11,F19,"V/F усиление компенсации скольжения, %",0x130B,high,RW,uint16,0.1,%,0.0,300.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x930B; Только в A650M (ред. 3, 2023)"
+F19.12,F19,"Усиление компенсации перепада напряжения статора, %",0x130C,high,RW,uint16,0.1,%,0.0,200.0,100.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x930C; Только в A650M (ред. 3, 2023)"
+F19.13,F19,"Усиление форсировки возбуждения, %",0x130D,high,RW,uint16,0.1,%,0.0,200.0,100.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x930D; Только в A650M (ред. 3, 2023)"
+F19.14,F19,"Подавление колебаний, %",0x130E,high,RW,uint16,0.1,%,0.0,300.0,----,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x930E; Только в A650M (ред. 3, 2023)"
+F19.15,F19,Источник напряжения для разделения V/F,0x130F,high,RW,enum16,1,,0,7,0,0=Цифровая настройка (F19.16);1=Потенциометр клавиатуры;2=AI1;3=Многоточечная;4=Импульсная настройка (DI7/HI);5=ПИД;6=AI2;7=AI3,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x930F; Только в A650M (ред. 3, 2023)"
+F19.16,F19,"Цифровая настройка частоты для разделения V/F, %",0x1310,high,RW,uint16,0.1,h,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9310; Только в A650M (ред. 3, 2023)"
+F19.17,F19,"Время возрастания напряжения при разделении V/F, с",0x1311,high,RW,uint16,0.1,s,0.0,6000.0,0.1,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9311; Только в A650M (ред. 3, 2023)"
+F20.00,F20,Управление скоростью / крутящим моментом,0x1400,high,RW,enum16,1,,0,1,0,0=Управление по скорости;1=Управление по вращающему моменту,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9400; Только в A650M (ред. 3, 2023)"
+F20.01,F20,Низкоскоростная ASR. Пропорциональное усиление Kp1,0x1401,high,RW,uint16,0.1,,0.0,100.0,15.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9401; Только в A650M (ред. 3, 2023)"
+F20.02,F20,"Низкоскоростная ASR. Время интегрирования Ti1, с",0x1402,high,RW,uint16,0.001,s,0.001,30.000,0.050,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9402; Только в A650M (ред. 3, 2023)"
+F20.03,F20,"Частота переключения ASR 1, Гц",0x1403,high,RW,uint16,0.01,Hz,0.00,F20.06,5.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9403; Только в A650M (ред. 3, 2023)"
+F20.04,F20,Высокоскоростная ASR. Пропорциональное усиление Kp2,0x1404,high,RW,uint16,0.1,,1.0,100.0,15.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9404; Только в A650M (ред. 3, 2023)"
+F20.05,F20,"Высокоскоростная ASR. Время интегрирования Ti2, с",0x1405,high,RW,uint16,0.001,s,0.001,30.000,0.100,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9405; Только в A650M (ред. 3, 2023)"
+F20.06,F20,"Частота 2 переключения ASR, Гц",0x1406,high,RW,uint16,0.01,Hz,F20.03,F01.08,10.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9406; Только в A650M (ред. 3, 2023)"
+F20.07,F20,"Время фильтрации входа ASR, мс",0x1407,high,RW,uint16,0.1,ms,0.0,500.0,0.3,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9407; Только в A650M (ред. 3, 2023)"
+F20.08,F20,"Время фильтрации выхода ASR, мс",0x1408,high,RW,uint16,0.1,ms,0.0,500.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9408; Только в A650M (ред. 3, 2023)"
+F20.09,F20,"Векторное управление усилением проскальзывания, %",0x1409,high,RW,uint16,0.1,%,50.0,200.0,100.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9409; Только в A650M (ред. 3, 2023)"
+F20.10,F20,"Цифровая уст. крутящего момента. Верх. предел управления по скорости, %",0x140A,high,RW,uint16,0.1,%,80.0,200.0,165.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x940A; Только в A650M (ред. 3, 2023)"
+F20.11,F20,Регулировка возбуждения. Пропорциональное усиление Kp1,0x140B,high,RW,uint16,0.01,,0.00,10.00,0.50,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x940B; Только в A650M (ред. 3, 2023)"
+F20.12,F20,"Регулировка возбуждения. Интегральное усиление Ti1, мс",0x140C,high,RW,uint16,0.1,ms,0.0,3000.0,10.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x940C; Только в A650M (ред. 3, 2023)"
+F20.13,F20,Регулировка крутящего момента. Пропорциональное усиление Kp2,0x140D,high,RW,uint16,0.01,,0.00,10.00,0.50,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x940D; Только в A650M (ред. 3, 2023)"
+F20.14,F20,"Регулировка крутящего момента. Интегральное усиление Ti2, мс",0x140E,high,RW,uint16,0.1,ms,0.0,3000.0,10.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x940E; Только в A650M (ред. 3, 2023)"
+F20.16,F20,Настройка источника вращающего момента при управлении крутящим моментом,0x1410,high,RW,enum16,1,,0,6,0,0=Установлено F20.17;1=Потенциометр клавиатуры;2=Аналоговый вход AI1;3=Аналоговый вход AI2;4=Аналоговый вход AI3;5=Импульсный вход DI7/HI;6=Настройка через канал связи,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9410; Только в A650M (ред. 3, 2023)"
+F20.17,F20,"Цифровая настройка крутящего момента, %",0x1411,high,RW,int16,0.1,%,-200.0,200.0,50.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9411; Только в A650M (ред. 3, 2023)"
+F20.18,F20,"Ограничение скорости вперед при упр. крутящим моментом, Гц",0x1412,high,RW,uint16,0.01,Hz,0.00,F01.08,50.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9412; Только в A650M (ред. 3, 2023)"
+F20.19,F20,"Ограничение скорости реверса при упр. крутящим моментом, Гц",0x1413,high,RW,uint16,0.01,Hz,0.00,F01.08,50.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9413; Только в A650M (ред. 3, 2023)"
+F20.20,F20,"Установка времени ускорения крутящего момента, с",0x1414,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9414; Только в A650M (ред. 3, 2023)"
+F20.21,F20,"Установка времени замедления крутящего момента, с",0x1415,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9415; Только в A650M (ред. 3, 2023)"
+F20.22,F20,"Компенсация статического трения в крутящем моменте, %",0x1416,high,RW,uint16,0.1,%,0.0,100.0,5.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9416; Только в A650M (ред. 3, 2023)"
+F20.23,F20,"Диапазон частот статического трения, Гц",0x1417,high,RW,uint16,0.01,Hz,0.00,20.00,1.00,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9417; Только в A650M (ред. 3, 2023)"
+F20.24,F20,"Компенсация трения скольжения в крутящем моменте, %",0x1418,high,RW,uint16,0.1,%,0.0,100.0,1.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9418; Только в A650M (ред. 3, 2023)"
+F20.25,F20,"Коэффициент компенсации инерции вращения, %",0x1419,high,RW,uint16,0.1,%,50.0,200.0,10.0,,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x9419; Только в A650M (ред. 3, 2023)"
+F20.26,F20,Источник максимальной частоты при управлении крутящим моментом,0x141A,high,RW,enum16,1,h,0,5,0,0=Установка F20.18 и F20.19;1=Потенциометр клавиатуры;2=Аналоговый вход AI1;3=Аналоговый вход AI2;4=Аналоговый вход AI3;5=Импульсный вход DI7/HI,ONI_A650M_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0x941A; Только в A650M (ред. 3, 2023)"
+F22.00,F22,Функция виртуальной клеммы VDI1,0x1600,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9600
+F22.01,F22,Функция виртуальной клеммы VDI2,0x1601,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9601
+F22.02,F22,Функция виртуальной клеммы VDI3,0x1602,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9602
+F22.03,F22,Функция виртуальной клеммы VDI4,0x1603,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9603
+F22.04,F22,Функция виртуальной клеммы VDI5,0x1604,high,RW,uint16,1,,0,58,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9604
+F22.05,F22,Режим настройки активного состояния виртуальной клеммы VDI,0x1605,high,RW,uint16,1,,0,56,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9605
+F22.06,F22,Настройка состояния виртуальной клеммы VDI,0x1606,high,RW,uint16,1,,0,56,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9606
+F22.07,F22,Функция виртуального выхода VDO1,0x1607,high,RW,uint16,1,,0,42,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9607
+F22.08,F22,Функция виртуального выхода VDO2,0x1608,high,RW,uint16,1,,0,42,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9608
+F22.09,F22,Функция виртуального выхода VDO3,0x1609,high,RW,uint16,1,,0,42,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9609
+F22.10,F22,Функция виртуального выхода VDO4,0x160A,high,RW,uint16,1,,0,42,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x960A
+F22.11,F22,Функция виртуального выхода VDO5,0x160B,high,RW,uint16,1,,0,37,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x960B
+F22.12,F22,"Время задержки вывода виртуального выхода VDO1, с",0x160C,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x960C
+F22.13,F22,"Время задержки вывода виртуального выхода VDO2, с",0x160D,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x960D
+F22.14,F22,"Время задержки вывода виртуального выхода VDO3, с",0x160E,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x960E
+F22.15,F22,"Время задержки вывода виртуального выхода VDO4, с",0x160F,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x960F
+F22.16,F22,"Время задержки вывода виртуального выхода VDO5, с",0x1610,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9610
+F22.17,F22,"Виртуальные выходы VDO, положительная/отрицательная логика",0x1611,high,RW,uint16,1,,00000,11111,00000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9611
+U00.00,U00,"Рабочая частота, Гц",0x3000,high,R,uint16,0.01,Hz,0.00,F01.09,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.01,U00,"Настройка частоты, Гц",0x3001,high,R,uint16,0.01,Hz,0.00,F01.08,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.02,U00,"Выходное напряжение, В",0x3002,high,R,uint16,1,V,0,660,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.03,U00,"Выходной ток, А",0x3003,high,R,uint16,0.1,A,0.0,3000.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.04,U00,"Выходная мощность, кВт",0x3004,high,R,uint16,0.1,kW,0.0,3000.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.05,U00,"Скорость двигателя, об/мин",0x3005,high,R,uint16,1,rpm,0,60000,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.06,U00,"Напряжение шины, В",0x3006,high,R,uint16,1,V,0,1200,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.07,U00,"Синхронная частота, Гц",0x3007,high,R,uint16,0.1,Hz,0.0,F01.09,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.08,U00,Шаг ПЛК,0x3008,high,R,uint16,1,,0,15,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.09,U00,"Время действия программы, с(мин)",0x3009,high,R,uint16,0.1,min,0.0,6000.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.10,U00,Настройка ПИД,0x300A,high,R,uint16,1,,0,60000,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.11,U00,ПИД обратная связь,0x300B,high,R,uint16,1,,0,60000,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.12,U00,Состояние входа DI5..DI1,0x300C,high,R,uint16,1,,00000,11111,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.13,U00,Состояние входа DI7..DI6,0x300D,high,R,uint16,1,,00,11,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.14,U00,"Состояние клемм цифрового выхода R2, R1, Y2, Y1",0x300E,high,R,uint16,1,,0000,1111,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.15,U00,"Вход AI1, %",0x300F,high,R,uint16,0.1,%,0.0,100.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.16,U00,"Вход AI2, %",0x3010,high,R,uint16,0.1,%,0.0,100.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.17,U00,"Вход AI3, %",0x3011,high,R,int16,0.1,%,-100.0,100.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.18,U00,"Вход потенциометра клавиатуры, %",0x3012,high,R,uint16,0.1,%,0.0,100.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.19,U00,"Вход HI, кГц",0x3013,high,R,uint16,0.01,Hz,0.00,100.00,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.20,U00,"Выход AO1, %",0x3014,high,R,uint16,0.1,%,0.0,100.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.21,U00,"Выход AO2, %",0x3015,high,R,uint16,0.1,%,0.0,100.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.22,U00,"Выход HO, кГц",0x3016,high,R,uint16,0.01,Hz,0.00,100.00,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.23,U00,"Температура ПЧ, °C",0x3017,high,R,int16,0.1,degC,-40.0,120.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.24,U00,"Накопленное время включения питания, мин",0x3018,high,R,uint16,1,min,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.25,U00,"Накопленное время работы, мин",0x3019,high,R,uint16,1,min,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.26,U00,"Общее время включения питания, час",0x301A,high,R,uint16,1,h,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.27,U00,"Общее время работы, час",0x301B,high,R,uint16,1,h,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.28,U00,Значение счета,0x301C,high,R,uint16,1,,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.29,U00,"Значения длины, м",0x301D,high,R,uint16,1,,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.30,U00,"Линейная скорость, м/мин",0x301E,high,R,uint16,1,m/min,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.31,U00,"Выходной крутящий момент, %",0x301F,high,R,uint16,0.1,%,0.0,300.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.32,U00,"Обнаружение температуры двигателя PTC, °C",0x3020,high,R,int16,1,degC,-40,200,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.33,U00,"Скорость обнаруженная энкодером, об/мин",0x3021,high,R,uint16,1,rpm,0,60000,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.34,U00,Линии энкодера,0x3022,high,R,uint16,1,,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.35,U00,"Рассеяние мощности, кВт•ч",0x3023,high,R,uint16,1,kW,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.36,U00,Состояние входа VDI5..VDI1,0x3024,high,R,uint16,1,,00000,11111,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.37,U00,Состояние выхода VDO5..VDO1,0x3025,high,R,uint16,1,,00000,11111,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.00,U01,Код последнего отказа,0x3100,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.01,U01,"Рабочая частота при возникновении текущего отказа, Гц",0x3101,high,R,uint16,0.01,Hz,0.00,F01.09,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.02,U01,"Выходной ток при возникновении текущего отказа, А",0x3102,high,R,uint16,0.1,A,0.0,3000.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.03,U01,"Напряжение шины при возникновении текущего отказа, В",0x3103,high,R,uint16,1,V,0,1200,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.04,U01,"Общее время работы при возникновении текущего отказа, час",0x3104,high,R,uint16,1,h,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.05,U01,Код предыдущего отказа 1,0x3105,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.06,U01,"Рабочая частота при возникновении предыдущего отказа 1, Гц",0x3106,high,R,uint16,0.01,Hz,0.00,F01.09,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.07,U01,"Выходной ток при возникновении предыдущего отказа 1, А",0x3107,high,R,uint16,0.1,A,0.0,3000.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.08,U01,"Напряжение шины при возникновении предыдущего отказа 1, В",0x3108,high,R,uint16,1,V,0,1200,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.09,U01,"Общее время работы при возникновении предыдущего отказа 1, час",0x3109,high,R,uint16,1,h,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.10,U01,Код предыдущего отказа 2,0x310A,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.11,U01,"Рабочая частота при возникновении предыдущего отказа 2, Гц",0x310B,high,R,uint16,0.01,Hz,0.00,F01.09,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.12,U01,"Выходной ток при возникновении предыдущего отказа 2, А",0x310C,high,R,uint16,0.1,A,0.0,3000.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.13,U01,"Напряжение шины при возникновении предыдущего отказа 2, В",0x310D,high,R,uint16,1,V,0,1200,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.14,U01,"Общее время работы при возникновении предыдущего отказа 2, час",0x310E,high,R,uint16,1,h,0,65535,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.15,U01,Код предыдущего отказа 3,0x310F,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.16,U01,Код предыдущего отказа 4,0x3110,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.17,U01,Код предыдущего отказа 5,0x3111,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.18,U01,Код предыдущего отказа 6,0x3112,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.19,U01,Код предыдущего отказа 7,0x3113,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.20,U01,Код предыдущего отказа 8,0x3114,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.21,U01,Код предыдущего отказа 9,0x3115,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.22,U01,Код предыдущего отказа 10,0x3116,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.23,U01,Код предыдущего отказа 11,0x3117,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.24,U01,Код предыдущего отказа 12,0x3118,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U01.25,U01,Код предыдущего отказа 13,0x3119,high,R,uint16,1,,0,40,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+H00.00,H00,Управление группой насосов (спец. функция),0x4000,high,RW,enum16,1,,0,1,0,0=Отключено;1=Включено,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC000
+H00.01,H00,Режим управления насосами,0x4001,high,RW,enum16,1,,0,3,0,0=Постоянный мастер;1=Переменный мастер;2=Мульти-переменный;3=Мульти-мастер,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC001
+H00.02,H00,"Частота подключения дополнительного насоса, Гц",0x4002,high,RW,uint16,0.01,Hz,H00.03,F01.08,50.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC002
+H00.03,H00,"Частота останова дополнительного насоса, Гц",0x4003,high,RW,uint16,0.01,Hz,0.00,H00.02,5.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC003
+H00.04,H00,"Допустимое отклонение давление для подключения дополнительного насоса, %",0x4004,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC004
+H00.05,H00,"Допустимое отклонение давление для останова дополнительного насоса, %",0x4005,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC005
+H00.06,H00,"Время задержки подключения насоса, c",0x4006,high,RW,uint16,0.1,s,0.0,300.0,20.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC006
+H00.07,H00,"Время задержки останова насоса, c",0x4007,high,RW,uint16,0.1,s,0.0,300.0,15.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC007
+H00.08,H00,"Время ускорения насоса перед подключением дополнительного насоса, c",0x4008,high,RW,uint16,0.1,s,0.0,300.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC008
+H00.09,H00,"Время останова насоса перед отключением дополнительного насоса, c",0x4009,high,RW,uint16,0.1,s,0.0,300.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC009
+H00.10,H00,"Время переключения, c",0x400A,high,RW,uint16,0.1,s,0.1,10.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC00A
+H00.11,H00,Статус насосов,0x400B,high,RW,uint16,1,,00000,11111,00011,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC00B
+H00.12,H00,Условие чередования насосов,0x400C,high,RW,enum16,1,,0,2,0,"0=Постоянный порядок;1=Запуск первого, остановка первого;2=Чередование по времени",ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC00C
+H00.13,H00,"Время чередования, мин",0x400D,high,RW,uint16,1,min,0,60000,240,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC00D
+H00.14,H00,Работа ПЧ при подключении дополнительного насоса в режиме постоянного мастера,0x400E,high,RW,enum16,1,,0,1,0,0=ПЧ остановлен;1=ПЧ работает,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC00E
+H00.15,H00,Функция очистки,0x400F,high,RW,enum16,1,,0,5,0,0=Выключено;1=Очистка при пуске;2=Очистка при остановке;3=Очистка при пуске и остановке;4=Цифровой вход;5=Высокая мощность,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC00F
+H00.16,H00,"Частота очистки вперёд, Гц",0x4010,high,RW,uint16,0.01,Hz,0.00,50.00,25.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC010
+H00.17,H00,"Частота очистки назад, Гц",0x4011,high,RW,uint16,0.01,Hz,0.00,50.00,25.00,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC011
+H00.18,H00,"Время паузы, с",0x4012,high,RW,uint16,0.1,s,0.0,60.0,3.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC012
+H00.19,H00,"Время очистки, с",0x4013,high,RW,uint16,0.1,s,0.0,120.0,10.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC013
+H00.20,H00,Количество циклов,0x4014,high,RW,uint16,1,,1,100,5,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC014
+H00.21,H00,"Ток высокой мощности, %",0x4015,high,RW,uint16,0.1,%,0.0,200.0,120.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC015
+H00.22,H00,"Задержка высокой мощности, с",0x4016,high,RW,uint16,0.1,s,0.0,120.0,10.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC016
+H00.23,H00,Функция заполнения трубы,0x4017,high,RW,enum16,1,,0,1,0,0=Отключено;1=Включено,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC017
+H00.24,H00,"Скорость заполнения, %/с",0x4018,high,RW,uint16,0.1,%,0.0,100.0,1.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC018
+H00.25,H00,"Задание заполнения, %",0x4019,high,RW,uint16,0.1,%,0.0,100.0,25.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC019
+H00.26,H00,Функция определения «сухого хода» насоса,0x401A,high,RW,enum16,1,,0,1,0,0=Отключено;1=Включено,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC01A
+H00.27,H00,"Ток определения «сухого хода» насоса, %",0x401B,high,RW,uint16,0.1,%,0.0,200.0,30.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC01B
+H00.28,H00,"Задержка срабатывания защиты от «сухого хода», с",0x401C,high,RW,uint16,0.1,s,0.0,60.0,10.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0xC01C
+H00.29,H00,Работа ПЧ в Мульте режиме,0x401D,high,RW,enum16,1,,0,1,1,0=Не работает;1=Работает,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC01D; Только в A650M (ред. 3, 2023)"
+H00.30,H00,Состояние ПЧ в Мульте режиме,0x401E,high,R,uint16,1,,00,22,00,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC01E; Только в A650M (ред. 3, 2023)"
+H00.31,H00,Использование ПЧ в Мульти режиме,0x401F,high,RW,enum16,1,,0,1,1,0=Slave;1=Master,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC01F; Только в A650M (ред. 3, 2023)"
+H00.32,H00,"Время работы ПЧ в Мульте режиме, с",0x4020,high,RW,uint16,1,s,0,65000,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC020; Только в A650M (ред. 3, 2023)"
+H00.33,H00,Функция выхода R3 платы расширения,0x4021,high,RW,uint16,1,,0,42,37,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC021; Только в A650M (ред. 3, 2023)"
+H00.34,H00,Функция выхода R4 платы расширения,0x4022,high,RW,uint16,1,,0,42,32,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC022; Только в A650M (ред. 3, 2023)"
+H00.35,H00,Функция выхода R5 платы расширения,0x4023,high,RW,uint16,1,,0,42,38,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC023; Только в A650M (ред. 3, 2023)"
+H00.36,H00,Функция выхода R6 платы расширения,0x4024,high,RW,uint16,1,,0,42,33,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC024; Только в A650M (ред. 3, 2023)"
+H00.37,H00,Функция выхода R7 платы расширения,0x4025,high,RW,uint16,1,,0,42,39,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC025; Только в A650M (ред. 3, 2023)"
+H00.38,H00,Функция выхода R8 платы расширения,0x4026,high,RW,uint16,1,,0,42,34,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC026; Только в A650M (ред. 3, 2023)"
+H00.39,H00,Статус выходов R7..R3,0x4027,high,R,uint16,1,,00000,11111,00000,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC027; Только в A650M (ред. 3, 2023)"
+H00.40,H00,Статус выхода R8,0x4028,high,R,uint16,1,,0,1,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC028; Только в A650M (ред. 3, 2023)"
+H00.42,H00,Функция режима пожаротушения,0x402A,high,RW,enum16,1,,0,4,0,0=Отключена;1=Включена – прямая операция;2=Включена – обратная операция;3=Включена – останов;4=Включена – прямая/обратная операция,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC02A; Только в A650M (ред. 3, 2023)"
+H00.43,H00,Режим управления пожаротушением,0x402B,high,RW,enum16,1,,0,1,0,0=Разомкнутый контур;1=Технологический замкнутый контур,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC02B; Только в A650M (ред. 3, 2023)"
+H00.44,H00,"Исходное значение режима пожаротушения, %",0x402C,high,RW,uint16,0.1,%,0.0,100.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC02C; Только в A650M (ред. 3, 2023)"
+H00.45,H00,Устранение неисправностей в режиме пожаротушения,0x402D,high,RW,enum16,1,,0,2,1,0=Неисправность + перезапуск/Серьезная неисправность;1=Неисправность/Серьезная неисправность;2=Сигнализация о неисправности/проверка,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC02D; Только в A650M (ред. 3, 2023)"
+H00.46,H00,Функция байпаса режима пожаротушения,0x402E,high,RW,enum16,1,,0,1,0,0=Отключена;1=Включена (только в режиме пожара),ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC02E; Только в A650M (ред. 3, 2023)"
+H00.47,H00,"Время задержки байпаса режима пожаротушения, с",0x402F,high,RW,uint16,1,s,0,600,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual_Ext.pdf;OniDriveStudio_v1.2.7.0,high,no,"EEPROM=0xC02F; Только в A650M (ред. 3, 2023)"

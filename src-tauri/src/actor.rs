@@ -1,0 +1,778 @@
+//! Thread-safe Drive Controller & Persistent RS-485 / Simulator Actor for ONI A650 / A650M.
+
+use crate::addresses::parameter_addresses;
+use crate::catalog::{load_embedded_faults, load_embedded_parameters, FaultRecord, ParameterRecord};
+use crate::modbus::{
+    crc16_modbus, format_hex, parse_read_response, parse_write_response, ReadRegistersRequest,
+    WriteRegisterRequest,
+};
+use crate::safety::{AuditLogEntry, SafetyError, SafetyGuard};
+use serde::{Deserialize, Serialize};
+use serialport::{ClearBuffer, DataBits, Parity, SerialPort, SerialPortType, StopBits};
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::sync::Mutex;
+use std::thread;
+use std::time::{Duration, Instant};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SerialPortInfoDto {
+    pub name: String,
+    pub short_label: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectionStatusDto {
+    pub simulated: bool,
+    pub connected: bool,
+    pub port_name: String,
+    pub baud_rate: u32,
+    pub frame_format: String,
+    pub slave_id: u8,
+    pub tx_count: u64,
+    pub rx_count: u64,
+    pub err_count: u64,
+    pub last_rtt_ms: u64,
+    pub last_tx_hex: String,
+    pub last_rx_hex: String,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DriveTelemetryDto {
+    pub connected: bool,
+    pub simulated: bool,
+    pub state_code: u16,
+    pub status_bits: u16,
+    pub fault_code: u16,
+    pub warning_code: u16,
+    pub output_freq_hz: f64,
+    pub target_freq_hz: f64,
+    pub dc_bus_volt: u16,
+    pub output_volt: u16,
+    pub output_current_a: f64,
+    pub tx_count: u64,
+    pub rx_count: u64,
+    pub err_count: u64,
+    pub last_rtt_ms: u64,
+    pub last_tx_hex: String,
+    pub last_rx_hex: String,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterExchangeResultDto {
+    pub values: Vec<u16>,
+    pub tx_hex: String,
+    pub rx_hex: String,
+    pub rtt_ms: u64,
+}
+
+/// Polling sequence using single-register FC03 requests (count = 1),
+/// matching OniDriveStudio v1.2.3.0.exe behavior and avoiding multi-register blocks.
+const TELEMETRY_SINGLE_REG_POLL_ORDER: [u16; 6] = [
+    0x3000, // U00.00 Рабочая частота (0.01 Гц)
+    0x3003, // U00.03 Выходной ток (0.1 А)
+    0x3006, // U00.06 Напряжение шины DC (1 В)
+    0x3002, // U00.02 Выходное напряжение (1 В)
+    0x3001, // U00.01 Настройка частоты (0.01 Гц)
+    0x2100, // Текущее состояние ПЧ (2100H)
+];
+
+pub struct DriveSession {
+    pub model: String,
+    pub slave_id: u8,
+    pub simulated: bool,
+    pub connected: bool,
+    pub port_name: String,
+    pub baud_rate: u32,
+    pub frame_format: String,
+    pub timeout_ms: u64,
+    pub tx_count: u64,
+    pub rx_count: u64,
+    pub err_count: u64,
+    pub last_rtt_ms: u64,
+    pub last_tx_hex: String,
+    pub last_rx_hex: String,
+    pub last_error: Option<String>,
+    pub poll_step_idx: usize,
+    pub last_bus_io: Option<Instant>,
+    pub serial_handle: Option<Box<dyn SerialPort>>,
+    pub guard: SafetyGuard,
+    pub sim_regs: HashMap<u16, u16>,
+    pub audit_log: Vec<AuditLogEntry>,
+    pub parameters: Vec<ParameterRecord>,
+    pub faults: Vec<FaultRecord>,
+}
+
+impl Default for DriveSession {
+    fn default() -> Self {
+        let parameters = load_embedded_parameters();
+        let faults = load_embedded_faults();
+        let mut guard = SafetyGuard::default();
+        for p in &parameters {
+            if p.access == "RW" {
+                if let Ok(addrs) = parameter_addresses(&p.param_id) {
+                    guard.writable_addresses.insert(addrs.ram);
+                    if let Some(ee) = addrs.eeprom {
+                        guard.writable_addresses.insert(ee);
+                    }
+                }
+            }
+        }
+        let mut sim_regs = HashMap::new();
+        sim_regs.insert(0x2100, 4);    // Stopped
+        sim_regs.insert(0x2101, 0);    // Forward
+        sim_regs.insert(0x2102, 0);    // No fault
+        sim_regs.insert(0x2103, 0);
+        sim_regs.insert(0x3000, 0);    // U00.00 Рабочая частота (0.01 Гц)
+        sim_regs.insert(0x3001, 3000); // U00.01 Задание частоты (30.00 Гц)
+        sim_regs.insert(0x3002, 0);    // U00.02 Выходное напряжение (В)
+        sim_regs.insert(0x3003, 0);    // U00.03 Выходной ток (0.1 А)
+        sim_regs.insert(0x3004, 0);    // U00.04 Выходная мощность (0.1 кВт)
+        sim_regs.insert(0x3005, 0);    // U00.05 Скорость вращения (об/мин)
+        sim_regs.insert(0x3006, 538);  // U00.06 Напряжение шины DC (В)
+
+        Self {
+            model: "A650M".to_string(),
+            slave_id: 1,
+            simulated: true,
+            connected: false,
+            port_name: "COM3".to_string(),
+            baud_rate: 9600,
+            frame_format: "1-8-N-2".to_string(),
+            timeout_ms: 450,
+            tx_count: 0,
+            rx_count: 0,
+            err_count: 0,
+            last_rtt_ms: 0,
+            last_tx_hex: String::new(),
+            last_rx_hex: String::new(),
+            last_error: None,
+            poll_step_idx: 0,
+            last_bus_io: None,
+            serial_handle: None,
+            guard,
+            sim_regs,
+            audit_log: Vec::new(),
+            parameters,
+            faults,
+        }
+    }
+}
+
+fn parse_serial_format(fmt: &str) -> (Parity, StopBits) {
+    match fmt.trim() {
+        "1-8-N-2" | "8N2" => (Parity::None, StopBits::Two),
+        "1-8-E-1" | "8E1" | "1-8-E-2" => (Parity::Even, StopBits::One),
+        "1-8-O-1" | "8O1" => (Parity::Odd, StopBits::One),
+        "1-8-N-1" | "8N1" => (Parity::None, StopBits::One),
+        _ => (Parity::None, StopBits::Two),
+    }
+}
+
+/// Reads an exact number of bytes from `port` up to `deadline`, tolerating chunked USB-UART arrivals.
+fn read_bytes_with_deadline(
+    port: &mut dyn SerialPort,
+    buf: &mut [u8],
+    deadline: Instant,
+) -> Result<(), std::io::Error> {
+    let mut offset = 0usize;
+    while offset < buf.len() {
+        if Instant::now() >= deadline {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!("таймаут чтения ({} из {} байт получено)", offset, buf.len()),
+            ));
+        }
+        match port.read(&mut buf[offset..]) {
+            Ok(0) => {
+                thread::sleep(Duration::from_millis(2));
+            }
+            Ok(n) => {
+                offset += n;
+            }
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                if Instant::now() >= deadline {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        format!("таймаут ответа ПЧ ({} из {} байт получено)", offset, buf.len()),
+                    ));
+                }
+                thread::sleep(Duration::from_millis(2));
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(())
+}
+
+/// Smart Modbus RTU response reader:
+/// Reads the 3-byte header `[slave, fc, byte2]` first so 5-byte Modbus exception frames
+/// (`0x83` / `0x86`) are caught immediately instead of hanging `read_exact` waiting for `5 + 2*count` bytes!
+fn read_modbus_rtu_response(
+    port: &mut dyn SerialPort,
+    expected_tail_after_header: usize,
+    timeout: Duration,
+) -> Result<Vec<u8>, String> {
+    let deadline = Instant::now() + timeout;
+    let mut hdr = [0u8; 3];
+    read_bytes_with_deadline(port, &mut hdr, deadline).map_err(|e| e.to_string())?;
+
+    // If highest bit of function code is set (0x83, 0x86), this is a 5-byte Modbus exception frame
+    let tail_len = if (hdr[1] & 0x80) != 0 {
+        2usize
+    } else {
+        expected_tail_after_header
+    };
+
+    let mut tail = vec![0u8; tail_len];
+    read_bytes_with_deadline(port, &mut tail, deadline).map_err(|e| e.to_string())?;
+
+    let mut full = Vec::with_capacity(3 + tail_len);
+    full.extend_from_slice(&hdr);
+    full.extend_from_slice(&tail);
+    Ok(full)
+}
+
+impl DriveSession {
+    pub fn record_audit(&mut self, op: &str, details: serde_json::Value) {
+        let entry = AuditLogEntry::new(op, self.slave_id, &self.model, details);
+        self.audit_log.insert(0, entry);
+        if self.audit_log.len() > 200 {
+            self.audit_log.pop();
+        }
+    }
+
+    pub fn status_dto(&self) -> ConnectionStatusDto {
+        ConnectionStatusDto {
+            simulated: self.simulated,
+            connected: self.connected,
+            port_name: self.port_name.clone(),
+            baud_rate: self.baud_rate,
+            frame_format: self.frame_format.clone(),
+            slave_id: self.slave_id,
+            tx_count: self.tx_count,
+            rx_count: self.rx_count,
+            err_count: self.err_count,
+            last_rtt_ms: self.last_rtt_ms,
+            last_tx_hex: self.last_tx_hex.clone(),
+            last_rx_hex: self.last_rx_hex.clone(),
+            last_error: self.last_error.clone(),
+        }
+    }
+
+    fn ensure_port_open(&mut self) -> Result<(), String> {
+        if self.serial_handle.is_some() {
+            return Ok(());
+        }
+        let (parity, stop_bits) = parse_serial_format(&self.frame_format);
+        let port = serialport::new(&self.port_name, self.baud_rate)
+            .data_bits(DataBits::Eight)
+            .parity(parity)
+            .stop_bits(stop_bits)
+            .timeout(Duration::from_millis(40))
+            .open()
+            .map_err(|e| {
+                format!(
+                    "Не удалось открыть {} ({} бод, {}): {}",
+                    self.port_name, self.baud_rate, self.frame_format, e
+                )
+            })?;
+        self.serial_handle = Some(port);
+        // Allow USB-RS485 transceiver (CP210x / CH340) lines to settle after open
+        thread::sleep(Duration::from_millis(25));
+        Ok(())
+    }
+
+    fn enforce_interframe_guard(&mut self) {
+        if let Some(prev) = self.last_bus_io {
+            let elapsed = prev.elapsed();
+            let guard_dur = Duration::from_millis(18);
+            if elapsed < guard_dur {
+                thread::sleep(guard_dur - elapsed);
+            }
+        }
+    }
+
+    pub fn connect_or_configure(
+        &mut self,
+        simulated: bool,
+        port_name: String,
+        baud_rate: u32,
+        frame_format: String,
+        slave_id: u8,
+        timeout_ms: u64,
+    ) -> Result<ConnectionStatusDto, String> {
+        // Drop previous serial handle so new port/baud/parity takes effect cleanly
+        self.serial_handle = None;
+        self.simulated = simulated;
+        self.port_name = port_name.trim().to_string();
+        self.baud_rate = baud_rate;
+        self.frame_format = frame_format;
+        self.slave_id = slave_id;
+        self.timeout_ms = timeout_ms.clamp(150, 2000);
+        self.last_error = None;
+        self.poll_step_idx = 0;
+
+        if self.simulated {
+            self.connected = false;
+            self.record_audit(
+                "switch_to_simulator",
+                serde_json::json!({
+                    "simulated": true,
+                    "slave_id": self.slave_id
+                }),
+            );
+            return Ok(self.status_dto());
+        }
+
+        // Open persistent handle & verify handshake on U00.00 (0x3000, count = 1)
+        self.ensure_port_open()?;
+        match self.read_registers_ex(0x3000, 1) {
+            Ok(res) => {
+                self.connected = true;
+                self.last_error = None;
+                self.record_audit(
+                    "connect_rs485_ok",
+                    serde_json::json!({
+                        "port": self.port_name,
+                        "baud": self.baud_rate,
+                        "format": self.frame_format,
+                        "slave_id": self.slave_id,
+                        "rtt_ms": res.rtt_ms,
+                        "tx_hex": res.tx_hex,
+                        "rx_hex": res.rx_hex
+                    }),
+                );
+                Ok(self.status_dto())
+            }
+            Err(err) => {
+                self.connected = false;
+                self.serial_handle = None;
+                self.last_error = Some(err.clone());
+                self.record_audit(
+                    "connect_rs485_failed",
+                    serde_json::json!({
+                        "port": self.port_name,
+                        "baud": self.baud_rate,
+                        "format": self.frame_format,
+                        "slave_id": self.slave_id,
+                        "error": err
+                    }),
+                );
+                Err(err)
+            }
+        }
+    }
+
+    pub fn disconnect(&mut self) -> ConnectionStatusDto {
+        self.serial_handle = None;
+        self.simulated = true;
+        self.connected = false;
+        self.last_error = None;
+        self.record_audit("disconnect_rs485", serde_json::json!({ "simulated": true }));
+        self.status_dto()
+    }
+
+    pub fn write_register_safe(
+        &mut self,
+        address: u16,
+        value: u16,
+        stop_only_code: Option<&str>,
+    ) -> Result<String, String> {
+        let res = self.write_register_safe_ex(address, value, stop_only_code)?;
+        Ok(res.tx_hex)
+    }
+
+    pub fn write_register_safe_ex(
+        &mut self,
+        address: u16,
+        value: u16,
+        stop_only_code: Option<&str>,
+    ) -> Result<RegisterExchangeResultDto, String> {
+        let is_running = self.sim_regs.get(&0x2100).copied().unwrap_or(4) == 1;
+        self.guard
+            .check_write(self.slave_id, address, is_running, stop_only_code)
+            .map_err(|e| e.to_string())?;
+
+        let req = WriteRegisterRequest::new(self.slave_id, address, value)
+            .map_err(|e| e.to_string())?;
+        let tx_bytes = req.to_bytes();
+        let tx_hex = format_hex(&tx_bytes);
+        self.tx_count += 1;
+        self.last_tx_hex = tx_hex.clone();
+        let t0 = Instant::now();
+
+        let rx_hex = if self.simulated {
+            if address == 0x2000 {
+                match value {
+                    1 => {
+                        self.sim_regs.insert(0x2100, 1);
+                        self.sim_regs.insert(0x2101, 0);
+                        let set_f = self.sim_regs.get(&0x3001).copied().unwrap_or(3000);
+                        self.sim_regs.insert(0x3000, set_f);
+                        self.sim_regs.insert(0x3002, 380);
+                        self.sim_regs.insert(0x3003, 125);
+                    }
+                    2 => {
+                        self.sim_regs.insert(0x2100, 1);
+                        self.sim_regs.insert(0x2101, 0b0010);
+                    }
+                    5 | 6 => {
+                        self.sim_regs.insert(0x2100, 4);
+                        self.sim_regs.insert(0x3000, 0);
+                        self.sim_regs.insert(0x3002, 0);
+                        self.sim_regs.insert(0x3003, 0);
+                    }
+                    7 => {
+                        self.sim_regs.insert(0x2102, 0);
+                        self.sim_regs.insert(0x2100, 4);
+                    }
+                    _ => {}
+                }
+            } else if address == 0x2001 {
+                self.sim_regs.insert(0x3001, value);
+                if self.sim_regs.get(&0x2100).copied().unwrap_or(4) == 1 {
+                    self.sim_regs.insert(0x3000, value);
+                }
+            } else {
+                self.sim_regs.insert(address, value);
+            }
+            parse_write_response(req, &tx_bytes).map_err(|e| e.to_string())?;
+            self.rx_count += 1;
+            self.last_rx_hex = tx_hex.clone();
+            tx_hex.clone()
+        } else {
+            if let Err(e) = self.ensure_port_open() {
+                self.err_count += 1;
+                self.connected = false;
+                self.last_error = Some(e.clone());
+                return Err(e);
+            }
+            self.enforce_interframe_guard();
+            let timeout = Duration::from_millis(self.timeout_ms.max(250));
+
+            let io_res: Result<Vec<u8>, String> = (|| {
+                let port = self.serial_handle.as_mut().unwrap();
+                let _ = port.clear(ClearBuffer::Input);
+                port.write_all(&tx_bytes)
+                    .map_err(|e| format!("Ошибка записи в {}: {}", self.port_name, e))?;
+                let _ = port.flush();
+                // Normal FC06 echo has 8 bytes (3 header + 5 tail)
+                read_modbus_rtu_response(port.as_mut(), 5, timeout)
+            })();
+
+            self.last_bus_io = Some(Instant::now());
+
+            let rx_buf = match io_res {
+                Ok(buf) => buf,
+                Err(_) => {
+                    self.err_count += 1;
+                    self.serial_handle = None;
+                    let msg = SafetyError::WriteOutcomeUnknown { address, value }.to_string();
+                    self.last_error = Some(msg.clone());
+                    return Err(msg);
+                }
+            };
+
+            let rx_s = format_hex(&rx_buf);
+            self.last_rx_hex = rx_s.clone();
+            parse_write_response(req, &rx_buf).map_err(|e| {
+                self.err_count += 1;
+                let msg = format!("{} (RX: {})", e, rx_s);
+                self.last_error = Some(msg.clone());
+                msg
+            })?;
+            self.rx_count += 1;
+            self.connected = true;
+            self.last_error = None;
+            self.sim_regs.insert(address, value);
+            rx_s
+        };
+
+        let rtt_ms = t0.elapsed().as_millis() as u64;
+        self.last_rtt_ms = rtt_ms;
+
+        self.record_audit(
+            "write_register_fc06",
+            serde_json::json!({
+                "address": format!("0x{:04X}", address),
+                "raw_value": value,
+                "tx_hex": tx_hex,
+                "rx_hex": rx_hex,
+                "rtt_ms": rtt_ms,
+                "simulated": self.simulated,
+            }),
+        );
+
+        Ok(RegisterExchangeResultDto {
+            values: vec![value],
+            tx_hex,
+            rx_hex,
+            rtt_ms,
+        })
+    }
+
+    pub fn read_registers(&mut self, address: u16, count: u16) -> Result<(Vec<u16>, String), String> {
+        let res = self.read_registers_ex(address, count)?;
+        Ok((res.values, res.tx_hex))
+    }
+
+    pub fn read_registers_ex(
+        &mut self,
+        address: u16,
+        count: u16,
+    ) -> Result<RegisterExchangeResultDto, String> {
+        let req = ReadRegistersRequest::new(self.slave_id, address, count)
+            .map_err(|e| e.to_string())?;
+        let tx_bytes = req.to_bytes();
+        let tx_hex = format_hex(&tx_bytes);
+        self.tx_count += 1;
+        self.last_tx_hex = tx_hex.clone();
+        let t0 = Instant::now();
+
+        if self.simulated {
+            let mut vals = Vec::with_capacity(count as usize);
+            let mut payload = vec![self.slave_id, 0x03, (count * 2) as u8];
+            for offset in 0..count {
+                let v = self.sim_regs.get(&(address + offset)).copied().unwrap_or(0);
+                vals.push(v);
+                payload.push((v >> 8) as u8);
+                payload.push((v & 0xFF) as u8);
+            }
+            let crc = crc16_modbus(&payload);
+            payload.push((crc & 0xFF) as u8);
+            payload.push((crc >> 8) as u8);
+            let rx_hex = format_hex(&payload);
+            self.rx_count += 1;
+            self.last_rx_hex = rx_hex.clone();
+            let rtt_ms = t0.elapsed().as_millis() as u64;
+            self.last_rtt_ms = rtt_ms;
+            Ok(RegisterExchangeResultDto {
+                values: vals,
+                tx_hex,
+                rx_hex,
+                rtt_ms,
+            })
+        } else {
+            if let Err(e) = self.ensure_port_open() {
+                self.err_count += 1;
+                self.connected = false;
+                self.last_error = Some(e.clone());
+                return Err(e);
+            }
+            self.enforce_interframe_guard();
+            let timeout = Duration::from_millis(self.timeout_ms.max(200));
+            let expected_tail = (count as usize) * 2 + 2;
+
+            let io_res: Result<Vec<u8>, String> = (|| {
+                let port = self.serial_handle.as_mut().unwrap();
+                let _ = port.clear(ClearBuffer::Input);
+                port.write_all(&tx_bytes)
+                    .map_err(|e| format!("Ошибка отправки в {}: {}", self.port_name, e))?;
+                let _ = port.flush();
+                read_modbus_rtu_response(port.as_mut(), expected_tail, timeout)
+            })();
+
+            self.last_bus_io = Some(Instant::now());
+
+            let rx_buf = match io_res {
+                Ok(buf) => buf,
+                Err(e) => {
+                    self.err_count += 1;
+                    // Re-open on next attempt if OS serial handle glitched
+                    self.serial_handle = None;
+                    let msg = format!(
+                        "Нет ответа ПЧ (ID={}, рег. 0x{:04X}, {} шт.) на {}: {}",
+                        self.slave_id, address, count, self.port_name, e
+                    );
+                    self.last_error = Some(msg.clone());
+                    return Err(msg);
+                }
+            };
+
+            let rx_hex = format_hex(&rx_buf);
+            self.last_rx_hex = rx_hex.clone();
+            let vals = parse_read_response(self.slave_id, count, &rx_buf).map_err(|e| {
+                self.err_count += 1;
+                let msg = format!("Рег. 0x{:04X}: {} (RX: {})", address, e, rx_hex);
+                self.last_error = Some(msg.clone());
+                msg
+            })?;
+            for (idx, v) in vals.iter().copied().enumerate() {
+                self.sim_regs.insert(address + idx as u16, v);
+            }
+            self.rx_count += 1;
+            self.connected = true;
+            self.last_error = None;
+            let rtt_ms = t0.elapsed().as_millis() as u64;
+            self.last_rtt_ms = rtt_ms;
+            Ok(RegisterExchangeResultDto {
+                values: vals,
+                tx_hex,
+                rx_hex,
+                rtt_ms,
+            })
+        }
+    }
+
+    /// Polls drive telemetry using single-register requests (`count = 1`) in round-robin order.
+    /// This guarantees compatibility with ONI A650 / A650M firmware that rejects block reads or 0x2103.
+    pub fn poll_telemetry(&mut self) -> Result<DriveTelemetryDto, String> {
+        if !self.simulated {
+            let reg_addr =
+                TELEMETRY_SINGLE_REG_POLL_ORDER[self.poll_step_idx % TELEMETRY_SINGLE_REG_POLL_ORDER.len()];
+            self.poll_step_idx = (self.poll_step_idx + 1) % TELEMETRY_SINGLE_REG_POLL_ORDER.len();
+
+            match self.read_registers_ex(reg_addr, 1) {
+                Ok(_) => {
+                    // If drive state is fault (6), also query fault code 0x2102 as a single register
+                    if reg_addr == 0x2100 && self.sim_regs.get(&0x2100).copied().unwrap_or(4) == 6 {
+                        let _ = self.read_registers_ex(0x2102, 1);
+                    }
+                }
+                Err(e) => {
+                    // If 0x2100 returns Modbus exception on older firmware, derive state from U00.00 > 0
+                    if reg_addr == 0x2100 && self.rx_count > 0 {
+                        let out_f = self.sim_regs.get(&0x3000).copied().unwrap_or(0);
+                        self.sim_regs.insert(0x2100, if out_f > 0 { 1 } else { 4 });
+                        self.connected = true;
+                        self.last_error = None;
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
+        let state_code = self.sim_regs.get(&0x2100).copied().unwrap_or(4);
+        let status_bits = self.sim_regs.get(&0x2101).copied().unwrap_or(0);
+        let fault_code = self.sim_regs.get(&0x2102).copied().unwrap_or(0);
+        let warning_code = self.sim_regs.get(&0x2103).copied().unwrap_or(0);
+        let output_freq_hz = self.sim_regs.get(&0x3000).copied().unwrap_or(0) as f64 * 0.01;
+        let target_freq_hz = self.sim_regs.get(&0x3001).copied().unwrap_or(3000) as f64 * 0.01;
+        let output_volt = self.sim_regs.get(&0x3002).copied().unwrap_or(0);
+        let output_current_a = self.sim_regs.get(&0x3003).copied().unwrap_or(0) as f64 * 0.1;
+        let dc_bus_volt = self.sim_regs.get(&0x3006).copied().unwrap_or(538);
+
+        Ok(DriveTelemetryDto {
+            connected: self.connected,
+            simulated: self.simulated,
+            state_code,
+            status_bits,
+            fault_code,
+            warning_code,
+            output_freq_hz,
+            target_freq_hz,
+            dc_bus_volt,
+            output_volt,
+            output_current_a,
+            tx_count: self.tx_count,
+            rx_count: self.rx_count,
+            err_count: self.err_count,
+            last_rtt_ms: self.last_rtt_ms,
+            last_tx_hex: self.last_tx_hex.clone(),
+            last_rx_hex: self.last_rx_hex.clone(),
+            last_error: self.last_error.clone(),
+        })
+    }
+
+    pub fn auto_scan_port(
+        &mut self,
+        port_name: String,
+        slave_id: u8,
+    ) -> Result<ConnectionStatusDto, String> {
+        let bauds = [9600u32, 19200, 38400, 4800, 57600, 115200];
+        let formats = ["1-8-N-2", "1-8-N-1", "1-8-E-1", "1-8-O-1"];
+        self.serial_handle = None;
+        self.port_name = port_name.trim().to_string();
+        self.slave_id = slave_id;
+        self.simulated = false;
+        self.timeout_ms = 220;
+
+        for &b in &bauds {
+            for &fmt in &formats {
+                self.serial_handle = None;
+                self.baud_rate = b;
+                self.frame_format = fmt.to_string();
+                if let Ok(res) = self.read_registers_ex(0x3000, 1) {
+                    self.timeout_ms = 450;
+                    self.connected = true;
+                    self.last_error = None;
+                    self.record_audit(
+                        "autoscan_found_drive",
+                        serde_json::json!({
+                            "port": self.port_name,
+                            "baud": b,
+                            "format": fmt,
+                            "slave_id": slave_id,
+                            "rtt_ms": res.rtt_ms,
+                            "rx_hex": res.rx_hex
+                        }),
+                    );
+                    return Ok(self.status_dto());
+                }
+            }
+        }
+
+        self.timeout_ms = 450;
+        self.connected = false;
+        self.serial_handle = None;
+        let msg = format!(
+            "ПЧ (Slave {}) на порту {} не ответил ни на одной комбинации (9600..115200 бод, 8N2/8N1/8E1/8O1).",
+            slave_id, self.port_name
+        );
+        self.last_error = Some(msg.clone());
+        Err(msg)
+    }
+}
+
+pub struct SharedDriveState(pub Mutex<DriveSession>);
+
+pub fn enumerate_ports() -> Vec<SerialPortInfoDto> {
+    match serialport::available_ports() {
+        Ok(ports) => ports
+            .into_iter()
+            .map(|p| {
+                let (chip_short, full_desc) = match p.port_type {
+                    SerialPortType::UsbPort(info) => {
+                        let prod = info.product.clone().unwrap_or_default();
+                        let mfg = info.manufacturer.clone().unwrap_or_default();
+                        let short = if prod.contains("CP210") {
+                            "CP210x USB".to_string()
+                        } else if prod.contains("CH340") || prod.contains("CH341") {
+                            "CH340 USB".to_string()
+                        } else if prod.contains("FT232") || mfg.contains("FTDI") {
+                            "FTDI USB".to_string()
+                        } else if !mfg.is_empty() {
+                            mfg.chars().take(14).collect()
+                        } else {
+                            format!("USB {:04X}:{:04X}", info.vid, info.pid)
+                        };
+                        let full = if !prod.is_empty() {
+                            prod
+                        } else {
+                            format!("USB {:04X}:{:04X}", info.vid, info.pid)
+                        };
+                        (short, full)
+                    }
+                    SerialPortType::PciPort => ("PCI COM".to_string(), "Встроенный порт PCI".to_string()),
+                    SerialPortType::BluetoothPort => ("BT COM".to_string(), "Bluetooth SPP".to_string()),
+                    SerialPortType::Unknown => ("RS-485".to_string(), "Стандартный COM-порт".to_string()),
+                };
+                SerialPortInfoDto {
+                    short_label: format!("{} · {}", p.port_name, chip_short),
+                    name: p.port_name,
+                    description: full_desc,
+                }
+            })
+            .collect(),
+        Err(_) => vec![],
+    }
+}
