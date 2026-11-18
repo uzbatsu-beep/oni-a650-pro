@@ -2,6 +2,8 @@ name: Windows preview
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,26 +12,31 @@ jobs:
     runs-on: windows-2022
     defaults:
       run:
+        working-directory: src-tauri
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve dependencies and offline stylesheet
-        run: |
-          cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          '@tailwind base; @tailwind components; @tailwind utilities;' | Set-Content -Encoding utf8 tailwind-input.css
-          npx --yes --package=tailwindcss@3.4.17 tailwindcss -i tailwind-input.css --content ./ui/index.html -o ui/tailwind.css --minify
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-inputs
-          path: |
-            ui/tailwind.css
-            src-tauri/Cargo.lock
-          if-no-files-found: error
       - name: Test Rust core
-        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --no-default-features
-      - name: Build Windows executable
-        run: cargo build --locked --manifest-path src-tauri/Cargo.toml --release --features tauri/custom-protocol
+        run: cargo test --locked --no-default-features
+      - name: Build Windows executable with embedded UI
+        run: cargo build --locked --release --features tauri/custom-protocol
+      - name: Check desktop startup
+        run: |
+          $exe = Resolve-Path target/release/oni-a650-pro.exe
+          $process = Start-Process $exe -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(45)
+            while (!$process.HasExited -and (Get-Date) -lt $deadline) {
+              $process.Refresh()
+              if ($process.MainWindowTitle -like '*ONI A650*') { break }
+              Start-Sleep -Milliseconds 500
+            }
+            if ($process.HasExited -or $process.MainWindowTitle -notlike '*ONI A650*') {
+              throw 'Configurator window did not open'
+            }
+          } finally {
+            if (!$process.HasExited) { Stop-Process -Id $process.Id }
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: oni-a650-pro-windows-x64
