@@ -1,0 +1,37 @@
+name: Windows preview
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve dependencies and offline stylesheet
+        run: |
+          cargo generate-lockfile --manifest-path src-tauri/Cargo.toml
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          '@tailwind base; @tailwind components; @tailwind utilities;' | Set-Content -Encoding utf8 tailwind-input.css
+          npx --yes --package=tailwindcss@3.4.17 tailwindcss -i tailwind-input.css --content ./ui/index.html -o ui/tailwind.css --minify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-inputs
+          path: |
+            ui/tailwind.css
+            src-tauri/Cargo.lock
+          if-no-files-found: error
+      - name: Test Rust core
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --no-default-features
+      - name: Build Windows executable
+        run: cargo build --locked --manifest-path src-tauri/Cargo.toml --release --features tauri/custom-protocol
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oni-a650-pro-windows-x64
+          path: src-tauri/target/release/oni-a650-pro.exe
+          if-no-files-found: error
