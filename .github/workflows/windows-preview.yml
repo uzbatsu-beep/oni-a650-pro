@@ -1,0 +1,44 @@
+name: Windows preview
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: src-tauri
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Rust core
+        run: cargo test --locked --no-default-features
+      - name: Build Windows executable with embedded UI
+        run: cargo build --locked --release --features tauri/custom-protocol
+      - name: Check desktop startup
+        run: |
+          $exe = Resolve-Path target/release/oni-a650-pro.exe
+          $process = Start-Process $exe -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(45)
+            while (!$process.HasExited -and (Get-Date) -lt $deadline) {
+              $process.Refresh()
+              if ($process.MainWindowTitle -like '*ONI A650*') { break }
+              Start-Sleep -Milliseconds 500
+            }
+            if ($process.HasExited -or $process.MainWindowTitle -notlike '*ONI A650*') {
+              throw 'Configurator window did not open'
+            }
+          } finally {
+            if (!$process.HasExited) { Stop-Process -Id $process.Id }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oni-a650-pro-windows-x64
+          path: src-tauri/target/release/oni-a650-pro.exe
+          if-no-files-found: error

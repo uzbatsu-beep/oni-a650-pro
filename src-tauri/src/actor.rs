@@ -3,6 +3,7 @@
 use crate::addresses::parameter_addresses;
 use crate::catalog::{load_embedded_faults, load_embedded_parameters, FaultRecord, ParameterRecord};
 use crate::modbus::{
+    ModbusError,
     crc16_modbus, format_hex, parse_read_response, parse_write_response, ReadRegistersRequest,
     WriteRegisterRequest,
 };
@@ -47,11 +48,12 @@ pub struct DriveTelemetryDto {
     pub status_bits: u16,
     pub fault_code: u16,
     pub warning_code: u16,
-    pub output_freq_hz: f64,
-    pub target_freq_hz: f64,
-    pub dc_bus_volt: u16,
-    pub output_volt: u16,
-    pub output_current_a: f64,
+    pub output_freq_hz: Option<f64>,
+    pub target_freq_hz: Option<f64>,
+    pub dc_bus_volt: Option<u16>,
+    pub output_volt: Option<u16>,
+    pub output_current_a: Option<f64>,
+    pub output_current_raw: Option<u16>,
     pub tx_count: u64,
     pub rx_count: u64,
     pub err_count: u64,
@@ -99,6 +101,8 @@ pub struct DriveSession {
     pub poll_step_idx: usize,
     pub last_bus_io: Option<Instant>,
     pub serial_handle: Option<Box<dyn SerialPort>>,
+    // Only validated physical FC03 replies for the active device belong here.
+    measured: HashMap<u16, (u16, Instant)>,
     pub guard: SafetyGuard,
     pub sim_regs: HashMap<u16, u16>,
     pub audit_log: Vec<AuditLogEntry>,
@@ -153,6 +157,7 @@ impl Default for DriveSession {
             poll_step_idx: 0,
             last_bus_io: None,
             serial_handle: None,
+            measured: HashMap::new(),
             guard,
             sim_regs,
             audit_log: Vec::new(),
@@ -241,6 +246,21 @@ fn read_modbus_rtu_response(
 }
 
 impl DriveSession {
+    fn reset_measurements(&mut self) {
+        self.measured.clear();
+        self.connected = false;
+        self.poll_step_idx = 0;
+    }
+
+    fn sample(&self, address: u16) -> Option<u16> {
+        if self.simulated {
+            return self.sim_regs.get(&address).copied();
+        }
+        // Six channels, nominally one request every 350 ms. Allow two normal sweeps.
+        let (value, received) = self.measured.get(&address)?;
+        (self.connected && received.elapsed() <= Duration::from_secs(5)).then_some(*value)
+    }
+
     pub fn record_audit(&mut self, op: &str, details: serde_json::Value) {
         let entry = AuditLogEntry::new(op, self.slave_id, &self.model, details);
         self.audit_log.insert(0, entry);
@@ -311,6 +331,7 @@ impl DriveSession {
     ) -> Result<ConnectionStatusDto, String> {
         // Drop previous serial handle so new port/baud/parity takes effect cleanly
         self.serial_handle = None;
+        self.reset_measurements();
         self.simulated = simulated;
         self.port_name = port_name.trim().to_string();
         self.baud_rate = baud_rate;
@@ -318,7 +339,6 @@ impl DriveSession {
         self.slave_id = slave_id;
         self.timeout_ms = timeout_ms.clamp(150, 2000);
         self.last_error = None;
-        self.poll_step_idx = 0;
 
         if self.simulated {
             self.connected = false;
@@ -373,8 +393,8 @@ impl DriveSession {
 
     pub fn disconnect(&mut self) -> ConnectionStatusDto {
         self.serial_handle = None;
+        self.reset_measurements();
         self.simulated = true;
-        self.connected = false;
         self.last_error = None;
         self.record_audit("disconnect_rs485", serde_json::json!({ "simulated": true }));
         self.status_dto()
@@ -564,6 +584,7 @@ impl DriveSession {
             if let Err(e) = self.ensure_port_open() {
                 self.err_count += 1;
                 self.connected = false;
+                self.measured.clear();
                 self.last_error = Some(e.clone());
                 return Err(e);
             }
@@ -586,6 +607,8 @@ impl DriveSession {
                 Ok(buf) => buf,
                 Err(e) => {
                     self.err_count += 1;
+                    self.connected = false;
+                    self.measured.clear();
                     // Re-open on next attempt if OS serial handle glitched
                     self.serial_handle = None;
                     let msg = format!(
@@ -599,17 +622,13 @@ impl DriveSession {
 
             let rx_hex = format_hex(&rx_buf);
             self.last_rx_hex = rx_hex.clone();
-            let vals = parse_read_response(self.slave_id, count, &rx_buf).map_err(|e| {
+            let vals = self.accept_reading(address, count, &rx_buf).map_err(|e| {
                 self.err_count += 1;
                 let msg = format!("Рег. 0x{:04X}: {} (RX: {})", address, e, rx_hex);
                 self.last_error = Some(msg.clone());
                 msg
             })?;
-            for (idx, v) in vals.iter().copied().enumerate() {
-                self.sim_regs.insert(address + idx as u16, v);
-            }
             self.rx_count += 1;
-            self.connected = true;
             self.last_error = None;
             let rtt_ms = t0.elapsed().as_millis() as u64;
             self.last_rtt_ms = rtt_ms;
@@ -620,6 +639,28 @@ impl DriveSession {
                 rtt_ms,
             })
         }
+    }
+
+    fn accept_reading(&mut self, address: u16, count: u16, frame: &[u8]) -> Result<Vec<u16>, ModbusError> {
+        let values = parse_read_response(self.slave_id, count, frame).inspect_err(|err| {
+            if matches!(err, ModbusError::DriveException { .. }) {
+                self.measured.retain(|addr, _| !addr.checked_sub(address).is_some_and(|n| n < count));
+            } else {
+                self.connected = false;
+                self.measured.clear();
+            }
+        })?;
+        let received = Instant::now();
+        for (index, &value) in values.iter().enumerate() {
+            if let Some(addr) = address.checked_add(index as u16) {
+                self.sim_regs.insert(addr, value);
+                if TELEMETRY_SINGLE_REG_POLL_ORDER.contains(&addr) {
+                    self.measured.insert(addr, (value, received));
+                }
+            }
+        }
+        self.connected = true;
+        Ok(values)
     }
 
     /// Polls drive telemetry using single-register requests (`count = 1`) in round-robin order.
@@ -637,31 +678,34 @@ impl DriveSession {
                         let _ = self.read_registers_ex(0x2102, 1);
                     }
                 }
-                Err(e) => {
-                    // If 0x2100 returns Modbus exception on older firmware, derive state from U00.00 > 0
-                    if reg_addr == 0x2100 && self.rx_count > 0 {
-                        let out_f = self.sim_regs.get(&0x3000).copied().unwrap_or(0);
-                        self.sim_regs.insert(0x2100, if out_f > 0 { 1 } else { 4 });
-                        self.connected = true;
-                        self.last_error = None;
-                    } else {
-                        return Err(e);
+                Err(_) => {
+                    // Older drives may reject the status register. Only use a recent
+                    // frequency from this device for the existing compatibility fallback.
+                    if reg_addr == 0x2100 {
+                        if let Some(frequency) = self.sample(0x3000) {
+                            self.sim_regs.insert(0x2100, if frequency > 0 { 1 } else { 4 });
+                        }
                     }
                 }
             }
         }
 
+        Ok(self.telemetry_snapshot())
+    }
+
+    fn telemetry_snapshot(&self) -> DriveTelemetryDto {
         let state_code = self.sim_regs.get(&0x2100).copied().unwrap_or(4);
         let status_bits = self.sim_regs.get(&0x2101).copied().unwrap_or(0);
         let fault_code = self.sim_regs.get(&0x2102).copied().unwrap_or(0);
         let warning_code = self.sim_regs.get(&0x2103).copied().unwrap_or(0);
-        let output_freq_hz = self.sim_regs.get(&0x3000).copied().unwrap_or(0) as f64 * 0.01;
-        let target_freq_hz = self.sim_regs.get(&0x3001).copied().unwrap_or(3000) as f64 * 0.01;
-        let output_volt = self.sim_regs.get(&0x3002).copied().unwrap_or(0);
-        let output_current_a = self.sim_regs.get(&0x3003).copied().unwrap_or(0) as f64 * 0.1;
-        let dc_bus_volt = self.sim_regs.get(&0x3006).copied().unwrap_or(538);
+        let output_freq_hz = self.sample(0x3000).map(|v| f64::from(v) / 100.0);
+        let target_freq_hz = self.sample(0x3001).map(|v| f64::from(v) / 100.0);
+        let output_volt = self.sample(0x3002);
+        let output_current_raw = self.sample(0x3003);
+        let output_current_a = output_current_raw.map(|v| f64::from(v) / 10.0);
+        let dc_bus_volt = self.sample(0x3006);
 
-        Ok(DriveTelemetryDto {
+        DriveTelemetryDto {
             connected: self.connected,
             simulated: self.simulated,
             state_code,
@@ -673,6 +717,7 @@ impl DriveSession {
             dc_bus_volt,
             output_volt,
             output_current_a,
+            output_current_raw,
             tx_count: self.tx_count,
             rx_count: self.rx_count,
             err_count: self.err_count,
@@ -680,7 +725,7 @@ impl DriveSession {
             last_tx_hex: self.last_tx_hex.clone(),
             last_rx_hex: self.last_rx_hex.clone(),
             last_error: self.last_error.clone(),
-        })
+        }
     }
 
     pub fn auto_scan_port(
@@ -688,6 +733,7 @@ impl DriveSession {
         port_name: String,
         slave_id: u8,
     ) -> Result<ConnectionStatusDto, String> {
+        self.reset_measurements();
         let bauds = [9600u32, 19200, 38400, 4800, 57600, 115200];
         let formats = ["1-8-N-2", "1-8-N-1", "1-8-E-1", "1-8-O-1"];
         self.serial_handle = None;
@@ -774,5 +820,57 @@ pub fn enumerate_ports() -> Vec<SerialPortInfoDto> {
             })
             .collect(),
         Err(_) => vec![],
+    }
+}
+
+#[cfg(test)]
+mod telemetry_tests {
+    use super::*;
+
+    fn response(payload: &[u8]) -> Vec<u8> {
+        let mut frame = payload.to_vec();
+        frame.extend_from_slice(&crc16_modbus(payload).to_le_bytes());
+        frame
+    }
+
+    #[test]
+    fn physical_snapshot_uses_only_validated_reads_from_this_connection() {
+        let mut drive = DriveSession::default();
+        assert_eq!(drive.telemetry_snapshot().dc_bus_volt, Some(538));
+        drive.simulated = false;
+        assert_eq!(drive.telemetry_snapshot().dc_bus_volt, None);
+        drive.accept_reading(0x3002, 2, &response(&[1, 3, 4, 0, 0, 0, 125])).unwrap();
+        let current = drive.telemetry_snapshot();
+        assert_eq!(current.output_volt, Some(0));
+        assert_eq!(current.output_current_raw, Some(125));
+        assert_eq!(current.output_current_a, Some(12.5));
+        assert_eq!(current.dc_bus_volt, None);
+        drive.reset_measurements();
+        assert_eq!(drive.telemetry_snapshot().output_current_a, None);
+    }
+
+    #[test]
+    fn stale_or_rejected_readings_do_not_appear_as_current() {
+        let mut drive = DriveSession::default();
+        drive.simulated = false;
+        drive.accept_reading(0x3002, 1, &response(&[1, 3, 2, 0, 10])).unwrap();
+        drive.accept_reading(0x3006, 1, &response(&[1, 3, 2, 2, 20])).unwrap();
+        assert_eq!(drive.telemetry_snapshot().dc_bus_volt, Some(532));
+        assert!(drive.accept_reading(0x3006, 1, &response(&[1, 0x83, 2])).is_err());
+        assert_eq!(drive.sample(0x3006), None);
+        assert_eq!(drive.sample(0x3002), Some(10));
+        drive.measured.get_mut(&0x3002).unwrap().1 = Instant::now() - Duration::from_secs(6);
+        assert_eq!(drive.sample(0x3002), None);
+    }
+
+    #[test]
+    fn malformed_reply_cannot_refresh_a_physical_sample() {
+        let mut drive = DriveSession::default();
+        drive.simulated = false;
+        for payload in [[1, 4, 2, 0, 1], [1, 3, 1, 0, 1], [2, 3, 2, 0, 1]] {
+            drive.accept_reading(0x3002, 1, &response(&[1, 3, 2, 0, 1])).unwrap();
+            assert!(drive.accept_reading(0x3002, 1, &response(&payload)).is_err());
+            assert_eq!(drive.sample(0x3002), None);
+        }
     }
 }

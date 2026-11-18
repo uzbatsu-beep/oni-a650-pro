@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ONI A650 / A650M | Инженерный конфигуратор PRO 2.0</title>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./tailwind.css" />
   <style>
     :root {
       --font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -421,9 +420,9 @@
               <span>Шина DC</span><span class="mono pro-text-primary">U00.06</span>
             </div>
             <div id="kpiDcBus" class="text-2xl font-bold mono mt-1.5">
-              <span id="val-voltage">538</span> <span class="text-xs font-normal pro-text-muted">В</span>
+              <span id="val-voltage">—</span> <span class="text-xs font-normal pro-text-muted">В</span>
             </div>
-            <div class="text-[11px] pro-text-muted mono mt-1">3006H · Норма 510..560 В</div>
+            <div class="text-[11px] pro-text-muted mono mt-1">3006H · Напряжение звена DC</div>
           </div>
 
           <div class="pro-card p-4">
@@ -566,9 +565,6 @@
               </button>
               <button id="btnReadGroupFromDrive" type="button" class="pro-btn-outline px-3 py-1.5 font-semibold cursor-pointer" title="Последовательное чтение параметров выбранной группы по 1 регистру (FC03 count=1)">
                 📥 Прочитать группу из ПЧ (FC03)
-              </button>
-              <button id="btnSaveAllEeprom" type="button" class="pro-btn-primary px-3.5 py-1.5 cursor-pointer">
-                💾 Записать изменения в EEPROM
               </button>
             </div>
           </div>
@@ -1218,6 +1214,7 @@
       targetFreqHz: 30.0,
       actualFreqHz: 0.0,
       outputCurrentA: 0.0,
+      outputCurrentRaw: null,
       dcBusVolt: 538,
       outputVolt: 0,
       faultCode: 0,
@@ -1568,17 +1565,24 @@
 
     ['quickConnMode', 'quickPortSelect', 'quickBaudSelect', 'quickFormatSelect', 'quickSlaveInput'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('change', syncConnControlsFromSidebar);
+      if (el) el.addEventListener('change', () => {
+        const cfg = syncConnControlsFromSidebar();
+        selectTelemetryMode(cfg.simulated && !TAURI_INVOKE ? 'sim' : 'waiting');
+      });
     });
     ['connModeSelect', 'connPortSelect', 'connBaudSelect', 'connFormatSelect', 'connSlaveInput'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('change', syncConnControlsFromTab3);
+      if (el) el.addEventListener('change', () => {
+        const cfg = syncConnControlsFromTab3();
+        selectTelemetryMode(cfg.simulated && !TAURI_INVOKE ? 'sim' : 'waiting');
+      });
     });
 
     document.getElementById('btnRefreshPorts').addEventListener('click', refreshSerialPortsList);
 
     async function doConnectOrPing(fromSidebar = true) {
       const cfg = fromSidebar ? syncConnControlsFromSidebar() : syncConnControlsFromTab3();
+      const epoch = selectTelemetryMode('waiting');
       if (TAURI_INVOKE) {
         try {
           const st = await rustInvoke('connect_serial', {
@@ -1589,7 +1593,9 @@
             slaveId: cfg.slaveId,
             timeoutMs: parseInt(document.getElementById('connPollInput')?.value || '400', 10)
           });
+          if (epoch !== telemetryEpoch) return;
           if (st) {
+            selectTelemetryMode(st.simulated ? 'sim' : 'rs485');
             updateConnectionIndicators(st);
             if (st.simulated) {
               showToast('Включен режим «Симулятор ПЧ (Offline)». Физический COM-порт отключен.', 'info');
@@ -1600,10 +1606,11 @@
         } catch (err) {
           try {
             const st = await rustInvoke('get_connection_status');
-            if (st) updateConnectionIndicators(st);
+            if (st && epoch === telemetryEpoch) updateConnectionIndicators(st);
           } catch (_) {}
         }
       } else {
+        if (cfg.simulated) selectTelemetryMode('sim');
         const tx = buildModbusFrame(cfg.slaveId, 0x03, 0x3000, 1);
         document.getElementById('lastTxFrame').textContent = formatHexFrame(tx);
         showToast(`Демо-режим браузера: отправлен кадр ${formatHexFrame(tx)}`, 'info');
@@ -1614,6 +1621,7 @@
       const cfg = fromSidebar ? syncConnControlsFromSidebar() : syncConnControlsFromTab3();
       document.getElementById('quickConnMode').value = 'rs485';
       document.getElementById('connModeSelect').value = 'rs485';
+      const epoch = selectTelemetryMode('waiting');
       if (TAURI_INVOKE) {
         showToast(`Сканируем порт ${cfg.portName} (Slave ID=${cfg.slaveId}, перебор 9600..115200 бод и 8N2/8N1)...`, 'info');
         try {
@@ -1621,7 +1629,9 @@
             portName: cfg.portName,
             slaveId: cfg.slaveId
           });
+          if (epoch !== telemetryEpoch) return;
           if (st) {
+            selectTelemetryMode(st.simulated ? 'sim' : 'rs485');
             document.getElementById('quickBaudSelect').value = String(st.baud_rate);
             document.getElementById('connBaudSelect').value = String(st.baud_rate);
             document.getElementById('quickFormatSelect').value = st.frame_format;
@@ -1632,7 +1642,7 @@
         } catch (err) {
           try {
             const st = await rustInvoke('get_connection_status');
-            if (st) updateConnectionIndicators(st);
+            if (st && epoch === telemetryEpoch) updateConnectionIndicators(st);
           } catch (_) {}
         }
       } else {
@@ -1660,47 +1670,87 @@
       6: '6 · АВАРИЯ'
     };
 
-    let _isPollingRust = false;
+    let telemetryEpoch = 0;
+    let telemetryMode = 'sim';
+    let polling = false;
+    let lastSnapshotAt = 0;
+
+    function renderReadings() {
+      for (const [id, value, digits, rawScale] of [
+        ['val-freq', state.actualFreqHz, 2, 100],
+        ['kpiSetFreq', state.targetFreqHz, 2, 100],
+        ['val-current', state.outputCurrentA, 1, null],
+        ['val-voltage', state.dcBusVolt, 0, 1],
+        ['kpiOutVolt', state.outputVolt, 0, 1],
+      ]) {
+        const el = document.getElementById(id);
+        el.textContent = Number.isFinite(value) ? value.toFixed(digits) : '—';
+        el.title = telemetryMode === 'sim' ? 'Симулятор' : Number.isFinite(value)
+          ? `FC03 · raw = ${rawScale === null ? state.outputCurrentRaw : Math.round(value * rawScale)}` : 'Нет актуального ответа ПЧ';
+      }
+    }
+
+    function clearReadings() {
+      state.targetFreqHz = state.actualFreqHz = state.outputCurrentRaw = state.outputCurrentA = state.dcBusVolt = state.outputVolt = null;
+      renderReadings();
+    }
+
+    function selectTelemetryMode(mode) {
+      telemetryMode = mode;
+      telemetryEpoch++;
+      lastSnapshotAt = 0;
+      state.scopeHistory = [];
+      clearReadings();
+      drawScope();
+      if (mode === 'sim') {
+        state.actualFreqHz = 0;
+        state.targetFreqHz = 30;
+        state.driveState = 4;
+        state.faultCode = 0;
+        state.direction = 0;
+      }
+      return telemetryEpoch;
+    }
+
     async function stepSimulation() {
-      const isRs485Mode = document.getElementById('quickConnMode')?.value === 'rs485';
-      if (TAURI_INVOKE && isRs485Mode) {
-        if (_isPollingRust) return;
-        _isPollingRust = true;
+      if (telemetryMode === 'waiting') return;
+      if (telemetryMode === 'rs485') {
+        if (polling) {
+          if (performance.now() - lastSnapshotAt > 5000) clearReadings();
+          return;
+        }
+        const epoch = telemetryEpoch;
+        polling = true;
         try {
           const tel = await TAURI_INVOKE('poll_drive_telemetry', {});
-          if (tel) {
-            state.driveState = tel.state_code;
-            state.direction = (tel.status_bits & 0x02) ? 1 : 0;
-            state.faultCode = tel.fault_code;
-            state.actualFreqHz = tel.output_freq_hz;
-            state.targetFreqHz = tel.target_freq_hz;
-            state.dcBusVolt = tel.dc_bus_volt;
-            state.outputVolt = tel.output_volt;
-            state.outputCurrentA = tel.output_current_a;
-            updateConnectionIndicators({
-              simulated: tel.simulated,
-              connected: tel.connected,
-              port_name: document.getElementById('quickPortSelect').value,
-              baud_rate: parseInt(document.getElementById('quickBaudSelect').value || '9600', 10),
-              frame_format: document.getElementById('quickFormatSelect').value,
-              slave_id: state.slaveId,
-              tx_count: tel.tx_count,
-              rx_count: tel.rx_count,
-              err_count: tel.err_count,
-              last_rtt_ms: tel.last_rtt_ms,
-              last_tx_hex: tel.last_tx_hex,
-              last_rx_hex: tel.last_rx_hex,
-              last_error: tel.last_error
-            });
-            syncFaultBanner();
+          if (epoch !== telemetryEpoch) return;
+          if (!tel || tel.simulated) {
+            selectTelemetryMode('waiting');
+            return;
           }
+          lastSnapshotAt = performance.now();
+          state.driveState = tel.state_code;
+          state.direction = (tel.status_bits & 0x02) ? 1 : 0;
+          state.faultCode = tel.fault_code;
+          state.actualFreqHz = tel.output_freq_hz;
+          state.targetFreqHz = tel.target_freq_hz;
+          state.dcBusVolt = tel.dc_bus_volt;
+          state.outputVolt = tel.output_volt;
+          state.outputCurrentA = tel.output_current_a;
+          state.outputCurrentRaw = tel.output_current_raw;
+          updateConnectionIndicators({
+            ...tel,
+            port_name: document.getElementById('quickPortSelect').value,
+            baud_rate: state.baud, frame_format: state.format, slave_id: state.slaveId
+          });
+          syncFaultBanner();
         } catch (err) {
-          try {
-            const st = await TAURI_INVOKE('get_connection_status', {});
-            if (st) updateConnectionIndicators(st);
-          } catch (_) {}
+          if (epoch !== telemetryEpoch) return;
+          clearReadings();
+          updateConnectionIndicators({simulated: false, connected: false,
+            port_name: document.getElementById('quickPortSelect').value, last_error: String(err)});
         } finally {
-          _isPollingRust = false;
+          polling = false;
         }
       } else if (state.driveState === 1 && state.faultCode === 0) {
         const diff = state.targetFreqHz - state.actualFreqHz;
@@ -1722,10 +1772,7 @@
         }
       }
 
-      document.getElementById('val-freq').textContent = state.actualFreqHz.toFixed(2);
-      document.getElementById('val-current').textContent = state.outputCurrentA.toFixed(1);
-      document.getElementById('val-voltage').textContent = String(state.dcBusVolt);
-      document.getElementById('kpiOutVolt').textContent = String(state.outputVolt);
+      renderReadings();
 
       const stEl = document.getElementById('kpiStateText');
       stEl.textContent = STATE_LABELS[state.driveState] || '4 · Останов';
@@ -1793,23 +1840,29 @@
       const pts = state.scopeHistory;
       if (pts.length < 2) return;
 
-      function plotLine(fn, color) {
+      function plotLine(key, scale, color) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 2.2;
         ctx.beginPath();
+        let segmentStarted = false;
         pts.forEach((p, idx) => {
+          if (!Number.isFinite(p[key])) {
+            segmentStarted = false;
+            return;
+          }
           const x = 38 + (idx / 89) * (W - 50);
-          const v = Math.max(0, Math.min(65, fn(p)));
+          const v = Math.max(0, Math.min(65, p[key] * scale));
           const y = (H - 16) - (v / 65) * (H - 32);
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+          if (segmentStarted) ctx.lineTo(x, y);
+          else ctx.moveTo(x, y);
+          segmentStarted = true;
         });
         ctx.stroke();
       }
 
-      plotLine(p => p.dc / 10.0, succCol);
-      plotLine(p => p.i * 3.0, warnCol);
-      plotLine(p => p.f, primaryCol);
+      plotLine('dc', 0.1, succCol);
+      plotLine('i', 3, warnCol);
+      plotLine('f', 1, primaryCol);
     }
 
     setInterval(stepSimulation, 350);
@@ -2049,16 +2102,6 @@
         btn.className = 'pfilter-btn pro-btn-primary flex-1 py-2 px-2.5 text-xs cursor-pointer';
         renderParamTable();
       });
-    });
-
-    document.getElementById('btnSaveAllEeprom').addEventListener('click', () => {
-      if (!state.allowWrite) {
-        showToast('Для пакетной записи в EEPROM разблокируйте SafetyGuard в верхней панели!', 'warn');
-        return;
-      }
-      const diffs = PARAM_CATALOG.filter(p => p.rwMode !== 0 && String(state.paramSet[p.id]) !== String(p.def));
-      appendAudit('batch_save_eeprom', { count: diffs.length, targetRange: '0x8000..0xC02F' });
-      showToast(`Отправлены команды записи FC06 на EEPROM-адреса (0x80xx / 0xC0xx) для ${diffs.length} измененных параметров`, 'success');
     });
 
     document.getElementById('btnLoadSampleOds').addEventListener('click', () => {

@@ -21,6 +21,8 @@ pub enum ModbusError {
     CrcMismatch { expected: u16, actual: u16 },
     #[error("slave address mismatch in response: expected {expected}, got {actual}")]
     SlaveMismatch { expected: u8, actual: u8 },
+    #[error("unexpected Modbus function 0x{0:02X} in FC03 response")]
+    UnexpectedReadFunction(u8),
     #[error("Modbus exception 0x{code:02X} ({name}) on function 0x{function:02X}")]
     DriveException {
         function: u8,
@@ -176,7 +178,10 @@ pub fn parse_read_response(expected_slave: u8, expected_count: u16, frame: &[u8]
         });
     }
     let fc = frame[1];
-    if (fc & EXCEPTION_BIT) != 0 {
+    if fc == (FC_READ_REGISTERS | EXCEPTION_BIT) {
+        if frame.len() != 5 {
+            return Err(ModbusError::UnexpectedLength { expected: 5, actual: frame.len() });
+        }
         let code = frame[2];
         return Err(ModbusError::DriveException {
             function: fc & !EXCEPTION_BIT,
@@ -184,7 +189,14 @@ pub fn parse_read_response(expected_slave: u8, expected_count: u16, frame: &[u8]
             name: exception_name(code),
         });
     }
-    let expected_len = 5 + (expected_count as usize) * 2;
+    if fc != FC_READ_REGISTERS {
+        return Err(ModbusError::UnexpectedReadFunction(fc));
+    }
+    let expected_bytes = usize::from(expected_count) * 2;
+    if usize::from(frame[2]) != expected_bytes {
+        return Err(ModbusError::UnexpectedLength { expected: expected_bytes, actual: usize::from(frame[2]) });
+    }
+    let expected_len = 5 + expected_bytes;
     if frame.len() != expected_len {
         return Err(ModbusError::UnexpectedLength {
             expected: expected_len,
