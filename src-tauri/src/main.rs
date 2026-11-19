@@ -94,12 +94,21 @@ mod gui_app {
         allow_write: bool,
     ) -> Result<bool, String> {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        // Operator unlock is only possible on an offline simulator or a verified
+        // live connection; reconnect/disconnect revokes any prior permission.
+        if allow_write && !sess.simulated && !sess.connected {
+            sess.guard.read_only = true;
+            sess.record_audit("set_safety_guard_denied",
+                serde_json::json!({ "reason": "physical drive not connected" }));
+            return Err("ПЧ не подключён: SafetyGuard остаётся в режиме «Только чтение»".to_string());
+        }
         sess.guard.read_only = !allow_write;
+        let simulated = sess.simulated;
         sess.record_audit(
             "set_safety_guard",
-            serde_json::json!({ "allow_write": allow_write }),
+            serde_json::json!({ "allow_write": allow_write, "simulated": simulated }),
         );
-        Ok(allow_write)
+        Ok(!sess.guard.read_only)
     }
 
     #[tauri::command]

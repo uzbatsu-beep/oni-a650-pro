@@ -1116,6 +1116,12 @@
     }
 
     function updateConnectionIndicators(statusDto) {
+      // Backend is authoritative; a reconnect or uncertain write can revoke the
+      // operator unlock without a corresponding frontend click.
+      if (typeof statusDto.write_enabled === 'boolean') {
+        state.allowWrite = statusDto.write_enabled;
+        syncSafetyUi();
+      }
       const dot = document.getElementById('connStatusDot');
       const txt = document.getElementById('sidebarConnText');
       const fmtTxt = document.getElementById('sidebarFormatText');
@@ -1406,15 +1412,28 @@
     }
 
     document.getElementById('safetyToggleBtn').addEventListener('click', async () => {
-      state.allowWrite = !state.allowWrite;
+      const requested = !state.allowWrite;
       if (TAURI_INVOKE) {
-        try { await rustInvoke('set_safety_allow_write', { allowWrite: state.allowWrite }); } catch (_) {}
+        try {
+          state.allowWrite = Boolean(await rustInvoke('set_safety_allow_write', { allowWrite: requested }));
+        } catch (_) {
+          try {
+            const st = await rustInvoke('get_connection_status');
+            if (st) updateConnectionIndicators(st);
+          } catch (_) {
+            state.allowWrite = false;
+          }
+          syncSafetyUi();
+          return;
+        }
+      } else {
+        state.allowWrite = requested;
       }
       syncSafetyUi();
       appendAudit('safety_guard_toggle', { allow_write: state.allowWrite });
       showToast(state.allowWrite
-        ? 'SafetyGuard: Запись параметров и управление пуском РАЗРЕШЕНЫ'
-        : 'SafetyGuard: Включен безопасный режим «Только чтение»', state.allowWrite ? 'success' : 'warn');
+        ? 'SafetyGuard: разрешены только проверенные Rust Backend операции FC06; запись EEPROM и опасные параметры заблокированы'
+        : 'SafetyGuard: включен режим «Только чтение»', state.allowWrite ? 'success' : 'warn');
     });
 
     const freqSlider = document.getElementById('freqSlider');
@@ -1438,8 +1457,11 @@
         showToast('Запись заблокирована SafetyGuard! Нажмите кнопку «SafetyGuard» в верхней панели.', 'warn');
         return;
       }
-      const hz = Math.max(0, Math.min(600, parseFloat(freqInputBox.value) || 0));
-      state.targetFreqHz = hz;
+      const hz = Number(freqInputBox.value);
+      if (!freqInputBox.value.trim() || !Number.isFinite(hz) || hz < 0 || hz > 600) {
+        showToast('Частота должна быть числом от 0 до 600 Гц. Запись отменена.', 'error');
+        return;
+      }
       const raw = Math.round(hz * 100);
       if (TAURI_INVOKE) {
         try {
@@ -1458,6 +1480,7 @@
         const tx = buildModbusFrame(state.slaveId, 0x06, 0x2001, raw);
         document.getElementById('lastTxFrame').textContent = formatHexFrame(tx);
       }
+      state.targetFreqHz = hz;
       document.getElementById('kpiSetFreq').textContent = hz.toFixed(2);
       appendAudit('write_register', { address: '0x2001', raw, engineering_hz: hz });
       showToast(`Уставка частоты ${hz.toFixed(2)} Гц записана в регистр 0x2001`, 'success');
@@ -2048,8 +2071,23 @@
             showToast(`Параметр ${pid} имеет атрибут «× Стоп»! Остановите ПЧ перед записью во избежание ошибки EXC04.`, 'error');
             return;
           }
-          const valNum = parseFloat(state.paramSet[pid]) || 0;
-          const rawVal = Math.round(valNum / (pObj.sc || 1)) & 0xFFFF;
+          const typedValue = String(state.paramSet[pid] ?? '').trim();
+          const valNum = Number(typedValue);
+          const scale = Number(pObj.sc);
+          if (!typedValue || !Number.isFinite(valNum) || !Number.isFinite(scale) || scale <= 0) {
+            showToast(`Недопустимое числовое значение параметра ${pid}. Запись отменена.`, 'error');
+            return;
+          }
+          const scaled = valNum / scale;
+          const rounded = Math.round(scaled);
+          const minRaw = pObj.dt === 'int16' ? -32768 : 0;
+          const maxRaw = pObj.dt === 'int16' ? 32767 : 65535;
+          if (!Number.isSafeInteger(rounded) || Math.abs(scaled - rounded) > 1e-6
+              || rounded < minRaw || rounded > maxRaw) {
+            showToast(`Значение ${pid} не соответствует типу ${pObj.dt} или масштабу ${scale}. Запись отменена.`, 'error');
+            return;
+          }
+          const rawVal = rounded < 0 ? rounded + 65536 : rounded;
           const addrInt = parseInt(pObj.ram, 16);
           if (TAURI_INVOKE) {
             try {

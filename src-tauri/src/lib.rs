@@ -97,23 +97,27 @@ mod tests {
         let mut guard = SafetyGuard::default();
         // Blocked by default read_only = true
         assert_eq!(
-            guard.check_write(1, 0x2000, false, None),
+            guard.check_write(1, 0x2000, 1, Some(4), None),
             Err(SafetyError::ReadOnlyMode)
         );
 
         guard.read_only = false;
         // Broadcast slave 0 blocked
         assert_eq!(
-            guard.check_write(0, 0x2000, false, None),
+            guard.check_write(0, 0x2000, 1, Some(4), None),
             Err(SafetyError::BroadcastForbidden)
         );
 
-        // Stop-only parameter blocked while motor is running
+        // All parameter writes require STOP; the catalog is authoritative.
+        guard.writable_addresses.insert(0x0101);
+        let parameters = load_embedded_parameters();
+        let parameter = parameters.iter().find(|p| p.param_id == "F01.01").unwrap();
         assert_eq!(
-            guard.check_write(1, 0x0101, true, Some("F01.01")),
-            Err(SafetyError::StopOnlyWhileRunning {
+            guard.check_write(1, 0x0101, 1, Some(1), Some(parameter)),
+            Err(SafetyError::ParameterRequiresStop {
                 code: "F01.01".to_string(),
-                address: 0x0101
+                address: 0x0101,
+                state: 1
             })
         );
     }
