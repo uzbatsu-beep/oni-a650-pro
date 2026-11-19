@@ -505,7 +505,7 @@ F22.14,F22,"Время задержки вывода виртуального в
 F22.15,F22,"Время задержки вывода виртуального выхода VDO4, с",0x160F,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x960F
 F22.16,F22,"Время задержки вывода виртуального выхода VDO5, с",0x1610,high,RW,uint16,0.1,s,0.0,6000.0,0.0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9610
 F22.17,F22,"Виртуальные выходы VDO, положительная/отрицательная логика",0x1611,high,RW,uint16,1,,00000,11111,00000,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x9611
-U00.00,U00,"Рабочая частота, Гц",0x3000,high,R,uint16,0.01,Hz,0.00,F01.09,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
+U00.00,U00,"Рабочая частота, Гц",0x3000,high,R,int16,0.01,Hz,-F01.09,F01.09,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring); F15.08=0 signed reverse; F15.08=1 absolute value
 U00.01,U00,"Настройка частоты, Гц",0x3001,high,R,uint16,0.01,Hz,0.00,F01.08,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
 U00.02,U00,"Выходное напряжение, В",0x3002,high,R,uint16,1,V,0,660,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)
 U00.03,U00,"Выходной ток, А",0x3003,high,R,uint16,0.1,A,0.0,3000.0,,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,RAM-only (monitoring)

@@ -18,6 +18,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test Rust core
         run: cargo test --locked --no-default-features
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test signed oscilloscope coordinates
+        run: node --test ../ui/tests/scope-math.test.cjs
       - name: Build Windows executable with embedded UI
         run: cargo build --locked --release --features tauri/custom-protocol
       - name: Check desktop startup

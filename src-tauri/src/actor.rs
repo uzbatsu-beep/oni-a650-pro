@@ -49,6 +49,8 @@ pub struct DriveTelemetryDto {
     pub fault_code: u16,
     pub warning_code: u16,
     pub output_freq_hz: Option<f64>,
+    /// Raw FC03 holding register 0x3000, preserved for troubleshooting.
+    pub output_freq_raw: Option<u16>,
     pub target_freq_hz: Option<f64>,
     pub dc_bus_volt: Option<u16>,
     pub output_volt: Option<u16>,
@@ -73,6 +75,13 @@ pub struct RegisterExchangeResultDto {
 
 /// Polling sequence using single-register FC03 requests (count = 1),
 /// matching OniDriveStudio v1.2.3.0.exe behavior and avoiding multi-register blocks.
+/// U00.00 / 0x3000 is a signed frequency when F15.08 = 0 (factory default).
+/// Under F15.08 = 1 the drive reports the absolute frequency, so the
+/// sign cannot be recovered from U00.00 alone.
+pub fn decode_output_frequency_hz(raw: u16) -> f64 {
+    f64::from(raw as i16) / 100.0
+}
+
 const TELEMETRY_SINGLE_REG_POLL_ORDER: [u16; 6] = [
     0x3000, // U00.00 Рабочая частота (0.01 Гц)
     0x3003, // U00.03 Выходной ток (0.1 А)
@@ -698,7 +707,8 @@ impl DriveSession {
         let status_bits = self.sim_regs.get(&0x2101).copied().unwrap_or(0);
         let fault_code = self.sim_regs.get(&0x2102).copied().unwrap_or(0);
         let warning_code = self.sim_regs.get(&0x2103).copied().unwrap_or(0);
-        let output_freq_hz = self.sample(0x3000).map(|v| f64::from(v) / 100.0);
+        let output_freq_raw = self.sample(0x3000);
+        let output_freq_hz = output_freq_raw.map(decode_output_frequency_hz);
         let target_freq_hz = self.sample(0x3001).map(|v| f64::from(v) / 100.0);
         let output_volt = self.sample(0x3002);
         let output_current_raw = self.sample(0x3003);
@@ -713,6 +723,7 @@ impl DriveSession {
             fault_code,
             warning_code,
             output_freq_hz,
+            output_freq_raw,
             target_freq_hz,
             dc_bus_volt,
             output_volt,
@@ -831,6 +842,19 @@ mod telemetry_tests {
         let mut frame = payload.to_vec();
         frame.extend_from_slice(&crc16_modbus(payload).to_le_bytes());
         frame
+    }
+
+    #[test]
+    fn reverse_frequency_is_signed_but_modbus_raw_is_preserved() {
+        let mut drive = DriveSession::default();
+        drive.simulated = false;
+        // 0xEC78 is -5000 in two's complement: -50.00 Hz.
+        drive.accept_reading(0x3000, 1, &response(&[1, 3, 2, 0xEC, 0x78]))
+            .unwrap();
+        let snapshot = drive.telemetry_snapshot();
+        assert_eq!(snapshot.output_freq_raw, Some(0xEC78));
+        assert_eq!(snapshot.output_freq_hz, Some(-50.0));
+        assert_eq!(snapshot.dc_bus_volt, None);
     }
 
     #[test]
