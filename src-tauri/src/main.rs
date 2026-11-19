@@ -14,6 +14,21 @@ mod gui_app {
     use std::sync::Mutex;
 
     #[tauri::command]
+    pub fn open_project_repository() -> Result<(), String> {
+        #[cfg(target_os = "windows")]
+        let opener = "explorer.exe";
+        #[cfg(target_os = "macos")]
+        let opener = "open";
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        let opener = "xdg-open";
+        std::process::Command::new(opener)
+            .arg(env!("CARGO_PKG_REPOSITORY"))
+            .spawn()
+            .map(|_| ())
+            .map_err(|err| err.to_string())
+    }
+
+    #[tauri::command]
     pub fn list_serial_ports() -> Vec<SerialPortInfoDto> {
         enumerate_ports()
     }
@@ -116,7 +131,7 @@ mod gui_app {
 
     #[tauri::command]
     pub fn import_ods_text(content: String) -> Result<StudioProfile, String> {
-        parse_studio_profile(&content, None).map_err(|e| e.to_string())
+        parse_studio_profile(&content, Some("ПЧ ONI A650M")).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -128,6 +143,7 @@ mod gui_app {
         tauri::Builder::default()
             .manage(SharedDriveState(Mutex::new(DriveSession::default())))
             .invoke_handler(tauri::generate_handler![
+                open_project_repository,
                 list_serial_ports,
                 get_connection_status,
                 connect_serial,

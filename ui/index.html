@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ONI A650 / A650M | Инженерный конфигуратор PRO 2.0</title>
+  <title>ONI A650M | Инженерный конфигуратор PRO 2.0</title>
   <link rel="stylesheet" href="./tailwind.css" />
   <style>
     :root {
@@ -220,6 +220,21 @@
 
     .terminal-pin { transition: all 0.18s ease; cursor: pointer; }
     .terminal-pin:hover { filter: brightness(1.22); transform: translateY(-1px); }
+    .brand-logo { width: 45px; height: 33px; object-fit: contain; padding: 4px; background: #fff; border-radius: 5px; }
+    .brand-help { margin-left: auto; flex: 0 0 28px; height: 28px; border-radius: 50%; font-size: 15px; font-weight: 700; }
+    .workspace-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+    .header-context, .appearance-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .appearance-controls { justify-content: flex-end; }
+    .housing-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .housing-choices button { padding: 8px 12px; font-weight: 600; }
+    .housing-choices button[aria-pressed="true"] { border-color: var(--primary); box-shadow: inset 0 -3px var(--primary); background: var(--primary-trans); }
+    .about-dialog { margin: auto; width: min(420px, calc(100vw - 32px)); padding: 24px; color: var(--text-main); }
+    .about-dialog::backdrop { background: rgba(0, 0, 0, .56); }
+    .about-dialog a { color: var(--text-main); text-decoration: underline; text-underline-offset: 3px; }
+    @media (max-width: 700px) {
+      .workspace-header { grid-template-columns: 1fr; }
+      .appearance-controls { justify-content: flex-start; }
+    }
   </style>
 </head>
 <body class="h-screen flex flex-col md:flex-row overflow-hidden">
@@ -229,13 +244,12 @@
     <div>
       <div class="p-4 border-b" style="border-color: var(--border);">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-white shadow mono text-sm" style="background: var(--primary);">
-            ONI
-          </div>
+          <img class="brand-logo" src="./ONI.svg" width="45" height="33" alt="ONI" />
           <div>
-            <h1 class="text-lg font-bold leading-tight pro-text-primary">ONI A650 PRO</h1>
+            <h1 class="text-lg font-bold leading-tight pro-text-primary">ONI A650M PRO</h1>
             <p class="text-[11px] pro-text-muted">Инженерная консоль 2.0</p>
           </div>
+          <button id="aboutOpen" type="button" class="brand-help pro-btn-outline" aria-label="О программе" aria-haspopup="dialog" title="О программе">?</button>
         </div>
       </div>
 
@@ -334,10 +348,6 @@
 
     <div class="hidden md:block p-3.5 border-t text-[11px] space-y-2" style="border-color: var(--border);">
       <div class="flex justify-between items-center">
-        <span class="pro-text-muted">Репозиторий:</span>
-        <span class="mono font-semibold">uzbatsu-beep/A650</span>
-      </div>
-      <div class="flex justify-between items-center">
         <span class="pro-text-muted">Аудит адресов:</span>
         <span class="mono" style="color: var(--success);">F17/F18/H00 OK</span>
       </div>
@@ -352,27 +362,16 @@
   <div class="flex-1 flex flex-col h-full overflow-hidden">
 
     <!-- ВЕРХНЯЯ ПАНЕЛЬ (TOPBAR) -->
-    <header class="pro-topbar min-h-[58px] px-5 py-2 flex flex-wrap items-center justify-between gap-3 z-10">
-      <div class="flex items-center gap-3">
+    <header class="pro-topbar workspace-header min-h-[58px] px-5 py-2 gap-3 z-10">
+      <div class="header-context">
         <h2 id="current-page-title" class="text-base font-bold">Панель мониторинга (U00) и Управление</h2>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2 text-xs">
-        <select id="globalModelSelect" class="pro-input px-2.5 py-1.5 font-semibold cursor-pointer">
-          <option value="A650M" selected>ПЧ ONI A650M (ред. 3, 617 пар.)</option>
-          <option value="A650">ПЧ ONI A650 (ред. 1, 531 пар.)</option>
-        </select>
-
-        <select id="globalRatingSelect" class="pro-input px-2.5 py-1.5 font-semibold cursor-pointer">
-          <option value="compact">1.5–2.2 кВт (Компакт)</option>
-          <option value="full" selected>3.7–450 кВт (Полный)</option>
-        </select>
-
         <button id="safetyToggleBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer" style="border-color: var(--warning); color: var(--warning); background: rgba(245, 124, 0, 0.12);">
           <span id="safetyIcon">🔒</span>
           <span id="safetyLabel">SafetyGuard: Только чтение</span>
         </button>
 
+      </div>
+      <div class="appearance-controls text-xs">
         <select id="palette-select" class="pro-input px-2.5 py-1.5 font-semibold cursor-pointer" title="Выбор цветовой палитры">
           <option value="oni" selected>🎨 Палитра: ONI Orange</option>
           <option value="nord">❄️ Палитра: Nord</option>
@@ -545,7 +544,7 @@
         <div class="pro-card p-4 space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 class="text-sm font-bold">Полный каталог параметров ONI A650 / A650M (617 параметров с исправленной адресацией)</h3>
+              <h3 class="text-sm font-bold">Каталог ONI A650M · редакция 3 · 617 параметров</h3>
               <p class="text-xs pro-text-muted">
                 Атрибуты записи по мануалу ONI:
                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold badge-run mono">△ На ходу</span>
@@ -576,10 +575,8 @@
             <div class="md:col-span-5 flex items-center gap-1.5">
               <button type="button" data-pfilter="all" class="pfilter-btn pro-btn-primary flex-1 py-2 px-2.5 text-xs cursor-pointer">Все</button>
               <button type="button" data-pfilter="diff" class="pfilter-btn pro-btn-outline flex-1 py-2 px-2.5 text-xs font-semibold cursor-pointer">Измененные (Diff)</button>
-              <button type="button" data-pfilter="fixed" class="pfilter-btn pro-btn-outline flex-1 py-2 px-2.5 text-xs font-semibold cursor-pointer">Исправленные в 2.0</button>
             </div>
           </div>
-          <select id="paramGroupFilter" class="hidden"><option value="ALL" selected>ALL</option></select>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
@@ -614,11 +611,15 @@
 
       <!-- ВКЛАДКА 3: КЛЕММНИК, ДЖАМПЕРЫ, СХЕМЫ И НАСТРОЙКА ПОРТА -->
       <section id="tab-terminals" class="tab-panel hidden space-y-4">
+        <div class="housing-choices text-xs" role="group" aria-label="Габарит клеммника">
+          <button type="button" class="pro-btn-outline" data-housing="compact" aria-pressed="false">1,5–2,2 кВт · Компактный клеммник</button>
+          <button type="button" class="pro-btn-outline" data-housing="full" aria-pressed="true">3,7–450 кВт · Полный клеммник</button>
+        </div>
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div class="lg:col-span-7 pro-card p-4 space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 class="text-sm font-bold">Интерактивный клеммник и аппаратные перемычки ONI A650 / A650M</h3>
+                <h3 class="text-sm font-bold">Интерактивный клеммник и аппаратные перемычки ONI A650M</h3>
                 <p class="text-xs pro-text-muted">Кликните по любой клемме или DIP-переключателю для просмотра привязанных параметров</p>
               </div>
               <span id="terminalHousingBadge" class="px-2.5 py-1 rounded text-xs font-bold mono badge-ro">
@@ -763,7 +764,7 @@
           <div class="lg:col-span-6 pro-card p-4 space-y-3.5">
             <div class="flex items-center justify-between">
               <div>
-                <h3 class="text-sm font-bold">Мастер 1: Настройка ПИД-регулятора (Группа F13 в A650M / F12 в A650)</h3>
+                <h3 class="text-sm font-bold">Мастер 1: Настройка ПИД-регулятора (группа F13)</h3>
                 <p class="text-xs pro-text-muted">Пересчет уставки из Бар в % и моделирование переходного процесса</p>
               </div>
               <span class="px-2 py-0.5 rounded text-xs font-bold mono badge-stop">F01.01 = 6</span>
@@ -982,7 +983,7 @@
       <!-- ВКЛАДКА 6: БАЗА ЗНАНИЙ И ЭКСПЛУАТАЦИЯ -->
       <section id="tab-tips" class="tab-panel hidden space-y-3">
         <div class="pro-card p-4 mb-2">
-          <h3 class="text-sm font-bold">Инженерная база знаний и шпаргалка пусконаладчика ONI A650 / A650M</h3>
+          <h3 class="text-sm font-bold">Инженерная база знаний и шпаргалка пусконаладчика ONI A650M</h3>
           <p class="text-xs pro-text-muted mt-0.5">Все номера параметров сверены с официальными руководствами <span class="mono">ONI_A650_Manual.pdf</span> (Изд. 1), <span class="mono">ONI_A650M_Manual.pdf</span> (Изд. 3, 2023) и <span class="mono">ONI_A650_Manual_Ext.pdf</span></p>
         </div>
 
@@ -998,22 +999,22 @@
         <div class="accordion">
           <div class="accordion-header">🌙 2. Спящий режим и пробуждение в контуре ПИД (Энергосбережение при нулевом водоразборе) <span>▼</span></div>
           <div class="accordion-content space-y-2">
-            <p>Позволяет ПЧ останавливать насос при закрытых кранах в магистрали и автоматически пробуждать его при падении давления (в <b>A650M ред. 3</b> параметры находятся в группе <b>F13</b>, в <b>A650 ред. 1</b> — в группе <b>F12</b>):</p>
+            <p>Позволяет ПЧ останавливать насос при закрытых кранах в магистрали и автоматически пробуждать его при падении давления (в <b>A650M ред. 3</b> параметры находятся в группе <b>F13</b>):</p>
             <ul class="list-disc pl-5 space-y-1">
-              <li><b>Частота сна и задержка сна (F13.23..F13.26 в A650M / F12.23..F12.26 в A650):</b> если выходная частота опускается ниже порога сна (например, <span class="mono">25.00 Гц</span>) и держится дольше времени задержки сна (<span class="mono">30..60 с</span>), ПЧ переходит в режим ожидания.</li>
+              <li><b>Частота сна и задержка сна (F13.23..F13.26):</b> если выходная частота опускается ниже порога сна (например, <span class="mono">25.00 Гц</span>) и держится дольше времени задержки сна (<span class="mono">30..60 с</span>), ПЧ переходит в режим ожидания.</li>
               <li><b>Порог пробуждения по давлению:</b> когда обратная связь от датчика давления падает ниже порога пробуждения в течение времени задержки, ПЧ автоматически запускает насос.</li>
             </ul>
           </div>
         </div>
 
         <div class="accordion">
-          <div class="accordion-header">⚙️ 3. Практическая настройка ПИД-регулятора (Группа F13 в A650M / F12 в A650) <span>▼</span></div>
+          <div class="accordion-header">⚙️ 3. Практическая настройка ПИД-регулятора (группа F13) <span>▼</span></div>
           <div class="accordion-content space-y-2">
             <p>Для активации замкнутого контура ПИД установите основной источник частоты <b>F01.01 = 6</b> (ПИД-регулятор):</p>
             <ul class="list-disc pl-5 space-y-1">
               <li><b>F13.00 / F12.00 (Источник задания ПИД):</b> <span class="mono">0</span> — цифровая уставка <b>F13.01 / F12.01</b> (в % от шкалы датчика).</li>
               <li><b>F13.02 / F12.02 (Канал обратной связи):</b> <span class="mono">0</span> — вход <b>AI1</b> (не забудьте переключить аппаратный джампер <span class="mono">AI1</span> на плате в положение <span class="mono">I</span> для датчика 4..20 мА и задать минимальный вход <b>F07.20 = 2.00 В</b> [20%]).</li>
-              <li><b>Коэффициенты Kp1 и Ti1 (F13.07 и F13.08 в A650M / F12.04 и F12.05 в A650):</b> заводское значение времени интегрирования <span class="mono">0.10 с</span> слишком мало для водяных насосов и вызывает раскачку давления! Начинайте наладку с <b>Kp1 = 1.5..2.0</b> и <b>Ti1 = 1.5..2.5 с</b>.</li>
+              <li><b>Коэффициенты Kp1 и Ti1 (F13.07 и F13.08):</b> заводское значение времени интегрирования <span class="mono">0.10 с</span> слишком мало для водяных насосов и вызывает раскачку давления! Начинайте наладку с <b>Kp1 = 1.5..2.0</b> и <b>Ti1 = 1.5..2.5 с</b>.</li>
             </ul>
           </div>
         </div>
@@ -1056,6 +1057,15 @@
     </main>
   </div>
 
+  <dialog id="aboutDialog" class="about-dialog pro-card" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle" class="text-lg font-bold">О программе</h2>
+    <p class="mt-2 text-sm">ONI A650M PRO — конфигуратор для ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
+    <p class="mt-2 text-sm">Выберите COM-порт для работы по RS-485 (Modbus RTU) или откройте симулятор. При запуске включён режим «Только чтение».</p>
+    <div class="flex items-center justify-between gap-3 mt-4 text-sm">
+      <a id="projectLink" href="https://github.com/uzbatsu-beep/oni-a650-pro" target="_blank" rel="noopener noreferrer">Проект и README на GitHub</a>
+      <form method="dialog"><button class="pro-btn-outline px-3 py-1.5" autofocus>Закрыть</button></form>
+    </div>
+  </dialog>
   <script>
 
     // =========================================================================
@@ -1177,33 +1187,34 @@
     const GROUP_NAMES = {
       'ALL': 'Все группы (Сквозной список)',
       'F00': 'Системные и базовые',
-      'F01': 'Команды частоты и разгон',
+      'F01': 'Задание и пределы частоты',
       'F02': 'Пуск, стоп и направление',
-      'F03': 'Двигатель 1 и автонастройка',
-      'F04': 'Кривая V/F и вектор (SVC)',
-      'F05': 'Векторный контур скорости',
-      'F06': 'Ограничение момента и тока',
-      'F07': 'Входы DI1..DI7 и AI1..AI3',
-      'F08': 'Выходы Y1/Y2, R1/R2, AO1/AO2',
-      'F09': 'Пульт оператора и дисплей',
-      'F10': 'Вспомогательные функции',
+      'F03': 'Разгон и замедление',
+      'F04': 'Дискретные входы',
+      'F05': 'Дискретные и релейные выходы',
+      'F06': 'Аналоговые и импульсные входы',
+      'F07': 'Аналоговые и импульсные выходы',
+      'F08': 'Двигатель 1 и автонастройка',
+      'F09': 'Характеристика V/F двигателя 1',
+      'F10': 'Управление скоростью и моментом двигателя 1',
       'F11': 'Защиты и пороги аварий',
       'F12': 'Многоступенчатые скорости / ПЛК',
-      'F13': 'ПИД-регулятор и спящий режим',
-      'F14': 'Качающаяся частота и таймеры',
+      'F13': 'ПИД-регулятор',
+      'F14': 'Колебания, счётчики и спящий режим',
       'F15': 'Связь RS-485 (Modbus RTU)',
-      'F16': 'Виртуальные входы/выходы VDI/VDO',
-      'F17': 'Пользовательские (F17.29 fix)',
-      'F18': 'Двигатель 2 (A650M fix -2)',
-      'F19': 'Векторный контур Мотора 2',
-      'F20': 'V/F контур Мотора 2',
+      'F16': 'Панель оператора и индикация',
+      'F17': 'Пользовательские параметры',
+      'F18': 'Двигатель 2',
+      'F19': 'Характеристика V/F двигателя 2',
+      'F20': 'Управление скоростью и моментом двигателя 2',
+      'F22': 'Виртуальные входы и выходы',
       'H00': 'Насосный каскад и спецфункции',
       'U00': 'Мониторинг в работе (0x30xx)',
       'U01': 'Архив аварийных записей'
     };
 
+    const DRIVE_MODEL = 'A650M';
     const state = {
-      model: 'A650M',
       rating: 'full',
       allowWrite: false,
       slaveId: 1,
@@ -1289,7 +1300,7 @@
         ts: new Date().toISOString(),
         op,
         slave: state.slaveId,
-        model: state.model,
+        model: DRIVE_MODEL,
         ...fields
       };
       state.auditLog.unshift(entry);
@@ -1322,7 +1333,7 @@
       'tab-terminals': 'Интерактивный клеммник, Джамперы V/mA и Связь RS-485',
       'tab-wizards': 'Мастера быстрой пусконаладки: ПИД (F13) и Насосный каскад (H00)',
       'tab-diagnostics': 'Диагностика, Справочник ошибок (Err01..Err40) и Лог Modbus RTU',
-      'tab-tips': 'Инженерная база знаний и эксплуатация ONI A650 / A650M'
+      'tab-tips': 'Инженерная база знаний и эксплуатация ONI A650M'
     };
 
     document.querySelectorAll('.nav-tab-btn').forEach(btn => {
@@ -1333,7 +1344,7 @@
         document.querySelectorAll('.tab-panel').forEach(panel => {
           panel.classList.toggle('hidden', panel.id !== target);
         });
-        document.getElementById('current-page-title').textContent = PAGE_TITLES[target] || 'ONI A650 PRO';
+        document.getElementById('current-page-title').textContent = PAGE_TITLES[target] || 'ONI A650M PRO';
         if (target === 'tab-params') { renderGroupTree(); renderParamTable(); }
         if (target === 'tab-terminals') renderTerminalSvg();
         if (target === 'tab-wizards') { updatePidWizard(); updateH00Wizard(); }
@@ -1347,21 +1358,25 @@
       });
     });
 
-    document.getElementById('globalModelSelect').addEventListener('change', (e) => {
-      state.model = e.target.value;
-      renderGroupTree();
-      renderParamTable();
-      renderTerminalSvg();
-      updateH00Wizard();
-      showToast(`Выбран профиль: ПЧ ONI ${state.model}`, 'info');
-    });
+    const aboutDialog = document.getElementById('aboutDialog');
+    document.getElementById('aboutOpen').addEventListener('click', () => aboutDialog.showModal());
+    if (TAURI_INVOKE) {
+      document.getElementById('projectLink').addEventListener('click', async event => {
+        event.preventDefault();
+        try {
+          await TAURI_INVOKE('open_project_repository');
+        } catch (err) {
+          showToast(`Не удалось открыть GitHub: ${err}`, 'error');
+          aboutDialog.close();
+        }
+      });
+    }
 
-    document.getElementById('globalRatingSelect').addEventListener('change', (e) => {
-      state.rating = e.target.value;
-      renderTerminalSvg();
-      showToast(state.rating === 'compact'
-        ? 'Клеммник: компактный габарит 1.5–2.2 кВт (без DI5, DI6, AI3, Y1)'
-        : 'Клеммник: стандартный габарит 3.7–450 кВт (полный набор клемм)', 'info');
+    document.querySelectorAll('[data-housing]').forEach(button => {
+      button.addEventListener('click', () => {
+        state.rating = button.dataset.housing;
+        renderTerminalSvg();
+      });
     });
 
     function syncSafetyUi() {
@@ -1600,7 +1615,7 @@
             if (st.simulated) {
               showToast('Включен режим «Симулятор ПЧ (Offline)». Физический COM-порт отключен.', 'info');
             } else if (st.connected) {
-              showToast(`Подключено к ПЧ ONI ${state.model} на ${st.port_name} (${st.baud_rate}, ${st.frame_format}, ID=${st.slave_id}, RTT=${st.last_rtt_ms} мс)`, 'success');
+              showToast(`Подключено к ПЧ ONI ${DRIVE_MODEL} на ${st.port_name} (${st.baud_rate}, ${st.frame_format}, ID=${st.slave_id}, RTT=${st.last_rtt_ms} мс)`, 'success');
             }
           }
         } catch (err) {
@@ -1869,7 +1884,7 @@
 
     document.getElementById('btnReadGroupFromDrive')?.addEventListener('click', async () => {
       const grp = state.selectedGroup === 'ALL' ? 'F00' : state.selectedGroup;
-      const targets = PARAM_CATALOG.filter(p => (state.model !== 'A650' || !p.mOnly) && p.g === grp);
+      const targets = PARAM_CATALOG.filter(p => p.g === grp);
       if (!TAURI_INVOKE) {
         showToast(`Демо-режим: группа ${grp} (${targets.length} параметров)`, 'info');
         return;
@@ -1903,13 +1918,12 @@
       if (!container) return;
       const counts = { 'ALL': 0 };
       PARAM_CATALOG.forEach(p => {
-        if (state.model === 'A650' && p.mOnly) return;
         counts['ALL']++;
         counts[p.g] = (counts[p.g] || 0) + 1;
       });
 
-      const order = ['ALL', 'F00', 'F01', 'F02', 'F03', 'F04', 'F05', 'F06', 'F07', 'F08', 'F09', 'F10', 'F11', 'F12', 'F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'H00', 'U00', 'U01'];
-      container.innerHTML = order.filter(g => counts[g]).map(g => {
+      const order = Object.keys(counts).sort();
+      container.innerHTML = order.map(g => {
         const isAct = state.selectedGroup === g;
         const title = g === 'ALL' ? GROUP_NAMES[g] : `${g}: ${GROUP_NAMES[g] || 'Группа'}`;
         return `<div class="group-tree-item ${isAct ? 'active' : ''}" data-tree-group="${g}">
@@ -1921,7 +1935,6 @@
       container.querySelectorAll('[data-tree-group]').forEach(el => {
         el.addEventListener('click', () => {
           state.selectedGroup = el.getAttribute('data-tree-group');
-          document.getElementById('paramGroupFilter').value = state.selectedGroup;
           renderGroupTree();
           renderParamTable();
         });
@@ -1935,10 +1948,8 @@
       const effectiveGroup = q ? 'ALL' : state.selectedGroup;
 
       const filtered = PARAM_CATALOG.filter(p => {
-        if (state.model === 'A650' && p.mOnly) return false;
         if (effectiveGroup !== 'ALL' && p.g !== effectiveGroup) return false;
         if (state.paramFilterMode === 'diff' && String(state.paramSet[p.id]) === String(p.def)) return false;
-        if (state.paramFilterMode === 'fixed' && !p.fixed) return false;
         if (q) {
           const hay = `${p.id} ${p.n} ${p.ram} ${p.ee} ${p.nt} ${p.en}`.toLowerCase();
           if (!hay.includes(q)) return false;
@@ -1948,13 +1959,9 @@
 
       document.getElementById('paramCountSummary').textContent = `${filtered.length} пар.`;
 
-      const slice = filtered.slice(0, 180);
-      tbody.innerHTML = slice.map(p => {
+      tbody.innerHTML = filtered.map(p => {
         const curVal = state.paramSet[p.id];
         const isDiff = String(curVal) !== String(p.def);
-        const fixBadge = p.fixed
-          ? `<span class="ml-1 px-1.5 py-0.5 text-[10px] rounded font-bold mono badge-run">2.0 Fix</span>`
-          : '';
 
         let statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold mono badge-stop" title="Изменение только при останове (×)">× Стоп</span>';
         if (p.rwMode === 0) {
@@ -1986,7 +1993,7 @@
         const noteHtml = p.nt ? `<div class="text-[10px] mono pro-text-muted mt-0.5">${p.nt}</div>` : '';
 
         return `<tr class="transition hover:opacity-95" style="${isDiff ? 'background: var(--primary-trans);' : ''}">
-          <td class="py-2.5 px-3 font-bold mono whitespace-nowrap pro-text-primary">${p.id}${fixBadge}</td>
+          <td class="py-2.5 px-3 font-bold mono whitespace-nowrap pro-text-primary">${p.id}</td>
           <td class="py-2.5 px-3">
             <div class="font-medium">${p.n}</div>
             ${noteHtml}
@@ -2142,7 +2149,7 @@
       const lines = [
         '﻿; Файл конфигурации ONI Drive Studio',
         '[General]',
-        `Model = ПЧ ONI ${state.model}`,
+        `Model = ПЧ ONI ${DRIVE_MODEL}`,
         `Address = ${state.slaveId}`,
         'Port = COM3',
         'Baud = 1',
@@ -2153,7 +2160,6 @@
         '[Parameter Set]'
       ];
       PARAM_CATALOG.forEach(p => {
-        if (state.model === 'A650' && p.mOnly) return;
         const val = state.paramSet[p.id];
         if (val !== '----' && String(val) !== String(p.def)) {
           const rawInt = Math.round((parseFloat(val) || 0) / (p.sc || 1));
@@ -2161,9 +2167,9 @@
         }
       });
       lines.push('', '[Parameter Read]', '', '[Check Parameter]');
-      downloadTextFile(`ONI_${state.model}_Profile.ods`, lines.join('\r\n'));
-      appendAudit('export_ods', { model: state.model });
-      showToast(`Профиль ONI_${state.model}_Profile.ods сохранен (UTF-8-BOM INI)`, 'success');
+      downloadTextFile(`ONI_${DRIVE_MODEL}_Profile.ods`, lines.join('\r\n'));
+      appendAudit('export_ods', { model: DRIVE_MODEL });
+      showToast(`Профиль ONI_${DRIVE_MODEL}_Profile.ods сохранен (UTF-8-BOM INI)`, 'success');
     });
 
     document.getElementById('btnExportCsv').addEventListener('click', () => {
@@ -2205,6 +2211,9 @@
       const container = document.getElementById('svgTerminalContainer');
       const badge = document.getElementById('terminalHousingBadge');
       if (!container) return;
+      document.querySelectorAll('[data-housing]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.housing === state.rating));
+      });
       const isCompact = state.rating === 'compact';
       badge.textContent = isCompact
         ? 'Габарит 1.5–2.2 кВт (Книжный корпус: без DI5, DI6, AI3, Y1)'
@@ -2243,15 +2252,20 @@
 
       container.querySelectorAll('.terminal-pin').forEach(g => {
         g.addEventListener('click', () => {
-          const pin = g.getAttribute('data-pin');
-          const spec = TERMINAL_SPECS[pin];
-          if (!spec) return;
-          document.getElementById('pinBadge').textContent = pin;
-          document.getElementById('pinCategory').textContent = spec.cat;
-          document.getElementById('pinDescription').textContent = spec.desc;
-          document.getElementById('pinParamsBox').textContent = `Связанные параметры: ${spec.params}`;
+          showTerminalPin(g.dataset.pin);
         });
       });
+      const currentPin = document.getElementById('pinBadge').textContent;
+      if (!row1.includes(currentPin) && !row2.includes(currentPin)) showTerminalPin('AI1');
+    }
+
+    function showTerminalPin(pin) {
+      const spec = TERMINAL_SPECS[pin];
+      if (!spec) return;
+      document.getElementById('pinBadge').textContent = pin;
+      document.getElementById('pinCategory').textContent = spec.cat;
+      document.getElementById('pinDescription').textContent = spec.desc;
+      document.getElementById('pinParamsBox').textContent = `Связанные параметры: ${spec.params}`;
     }
 
     document.querySelectorAll('.dip-toggle-btn').forEach(btn => {
@@ -2277,7 +2291,7 @@
       if (mode === '2wire') {
         box.innerHTML = `<svg viewBox="0 0 460 140" class="w-full h-auto">
           <rect x="270" y="10" width="175" height="120" rx="8" fill="#18181b" stroke="#f36c21" stroke-width="2"/>
-          <text x="357" y="30" text-anchor="middle" fill="#f36c21" font-size="11" font-weight="700">Клеммник ПЧ A650</text>
+          <text x="357" y="30" text-anchor="middle" fill="#f36c21" font-size="11" font-weight="700">Клеммник ПЧ A650M</text>
           <text x="285" y="56" fill="#e2e8f0" font-size="11" font-family="JetBrains Mono">DI1 (Пуск Вперед)</text>
           <text x="285" y="84" fill="#e2e8f0" font-size="11" font-family="JetBrains Mono">DI2 (Пуск Назад)</text>
           <text x="285" y="112" fill="#94a3b8" font-size="11" font-family="JetBrains Mono">COM (Общий 0В)</text>
@@ -2515,14 +2529,12 @@
     window.addEventListener('load', () => {
       syncSafetyUi();
       syncFaultBanner();
-      renderGroupTree();
-      renderParamTable();
       renderTerminalSvg();
       renderWiringMacro('2wire');
       updatePidWizard();
       updateH00Wizard();
       renderFaultTable();
-      appendAudit('session_init', { app: 'ONI A650 PRO 2.0 Unified Configurator', catalog_size: PARAM_CATALOG.length, palette: 'oni', theme: 'dark' });
+      appendAudit('session_init', { app: 'ONI A650M PRO 2.0 Unified Configurator', catalog_size: PARAM_CATALOG.length, palette: 'oni', theme: 'dark' });
     });
   </script>
 </body>
