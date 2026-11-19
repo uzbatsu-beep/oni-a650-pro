@@ -103,9 +103,10 @@ mod gui_app {
             return Err("ПЧ не подключён: SafetyGuard остаётся в режиме «Только чтение»".to_string());
         }
         sess.guard.read_only = !allow_write;
+        let simulated = sess.simulated;
         sess.record_audit(
             "set_safety_guard",
-            serde_json::json!({ "allow_write": allow_write, "simulated": sess.simulated }),
+            serde_json::json!({ "allow_write": allow_write, "simulated": simulated }),
         );
         Ok(!sess.guard.read_only)
     }
