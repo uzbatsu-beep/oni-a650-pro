@@ -1,13 +1,13 @@
-name: Publish Windows v0.2.0-preview.2
+name: Publish Windows v0.2.0-preview.3
 
 on:
   push:
-    branches: [release/v0.2.0-preview.2]
+    branches: [release/v0.2.0-preview.3]
 
 permissions: {}
 
 concurrency:
-  group: publish-oni-a650-pro-v0.2.0-preview.2
+  group: publish-oni-a650-pro-v0.2.0-preview.3
   cancel-in-progress: false
 
 jobs:
@@ -19,12 +19,12 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RELEASE_TAG: v0.2.0-preview.2
-      SOURCE_SHA: 09210df4840f68985a57d2db8576279f2bf431d6
-      SOURCE_RUN_ID: '44448850660'
-      ARTIFACT_ID: '14494517525'
-      ZIP_NAME: oni-a650-pro-0.2.0-preview.2-windows-x64.zip
-      ZIP_SHA256: 2763846b0f3ba82bd53cedb4dc8f43cf8c5e898bc477cfea4b5703dc067ef2ce
+      RELEASE_TAG: v0.2.0-preview.3
+      SOURCE_SHA: 6f08ea7c62709e5903b03a21cd0e3356c9d38552
+      SOURCE_RUN_ID: '44595690628'
+      ARTIFACT_ID: '14565817239'
+      ZIP_NAME: oni-a650-pro-0.2.0-preview.3-windows-x64.zip
+      ZIP_SHA256: 879a097835d615fac742de66651c4080da6717e84072d0cf6b25d73405d64569
 
     steps:
       - name: Verify Windows CI and exact artifact source
@@ -56,30 +56,32 @@ jobs:
           unzip -t "$ZIP_NAME"
           unzip -Z1 "$ZIP_NAME" | grep -Fxq 'oni-a650-pro.exe'
           cat > notes.md <<'NOTES'
-          ## ONI A650 PRO 0.2.0-preview.2 — Windows x64
+          ## ONI A650 PRO 0.2.0-preview.3 — Windows x64
 
-          Preliminary stand-test build from the latest tested main commit 09210df, including merged PR #4.
+          Stand-test prerelease from main commit 6f08ea7c62709e5903b03a21cd0e3356c9d38552, including merged PR #6.
 
-          ### Changes since preview.1
-          - The full 617-parameter A650M Edition 3 catalog is visible, from F00 through H00.47. The previous 180-row display limit is removed.
-          - Group navigation includes F22; full-text search and the All / Changed filters remain available.
-          - Compact and full terminal layouts now have explicit switches, with a safe fallback when a selected terminal is absent.
-          - ONI branding, upper-right theme and palette controls, and accessible About/help dialog.
-          - Existing read-only FC03 telemetry: confirmed zero is displayed as zero; absent or stale U/I/DC readings display a dash.
+          ### What changed since preview.2
+          - Fix reverse-running frequency in the U00.00 (0x3000) telemetry: the FC03 raw 16-bit register is interpreted as signed int16 in F15.08=0 mode, and scaled by 0.01 Hz.
+          - Example: raw 0xEC78 represents -5000, so the display now reads -50.00 Hz, not a large positive number.
+          - Oscilloscope now has a symmetric frequency axis with zero in the center; negative frequency crosses below the zero line rather than being clipped.
+          - Added the raw frequency value to the diagnostic tooltip, including hexadecimal value, to simplify comparison with the inverter.
+          - Simulator supports reverse frequency. Signed int16 values are decoded when reading typed catalog parameters.
+          - Added Rust and JavaScript tests for signed frequency and oscilloscope coordinates.
 
           ### Installation
-          Download the Windows x64 ZIP asset, extract it, then run `oni-a650-pro.exe`. Microsoft Edge WebView2 Runtime must be installed. No separate frontend installation is required.
+          Download the Windows x64 ZIP, extract it, and run `oni-a650-pro.exe`. Microsoft Edge WebView2 Runtime must be installed.
 
-          ### Verification and limitations
-          - Source commit: `09210df4840f68985a57d2db8576279f2bf431d6`.
-          - Windows Server 2022 CI: 9 Rust tests passed, release EXE built, desktop window opened successfully.
-          - The user interface of PR #4 was checked in Qt WebEngine with 617 entries; the physical inverter was **not** tested with this build.
-          - Start physical bench verification in **Read-Only** mode. Compare U00.02 / U00.03 / U00.06 and raw registers with the inverter panel.
-          - Parameter writes and drive control are **not yet approved for unrestricted physical use**; SafetyGuard and numeric range validation require strengthening.
+          ### Verification and safety limitations
+          - Source: `6f08ea7c62709e5903b03a21cd0e3356c9d38552`.
+          - [Windows CI run #44595690628](https://github.com/uzbatsu-beep/oni-a650-pro/actions/runs/44595690628): Rust tests, JavaScript oscilloscope tests, release EXE build, window-start smoke test and artifact upload all passed.
+          - **This updated version has not yet been physically tested on the inverter.** Prior physical tests were on preview.2.
+          - The frequency is signed when parameter F15.08 = 0 (factory default). With F15.08 = 1, U00.00 reports the absolute frequency; do not infer a negative sign from it alone.
+          - Start the physical verification in **Read-Only** mode; compare +50, 0, and -50 Hz, the raw 0x3000 register value and the waveform crossing zero.
+          - Do not use unrestricted parameter writes or drive control without a separate safety acceptance; strengthening of SafetyGuard is planned.
 
-          [Source commit](https://github.com/uzbatsu-beep/oni-a650-pro/commit/09210df4840f68985a57d2db8576279f2bf431d6) · [Verified Windows CI](https://github.com/uzbatsu-beep/oni-a650-pro/actions/runs/44448850660) · [PR #4](https://github.com/uzbatsu-beep/oni-a650-pro/pull/4)
+          [PR #6](https://github.com/uzbatsu-beep/oni-a650-pro/pull/6) · [Verification checklist](https://github.com/uzbatsu-beep/oni-a650-pro/blob/6f08ea7c62709e5903b03a21cd0e3356c9d38552/docs/REVERSE_FREQUENCY_VERIFICATION.md) · [Source commit](https://github.com/uzbatsu-beep/oni-a650-pro/commit/6f08ea7c62709e5903b03a21cd0e3356c9d38552)
           NOTES
           gh release create "$RELEASE_TAG" "$ZIP_NAME" SHA256SUMS.txt \
             --target "$SOURCE_SHA" --prerelease \
-            --title 'ONI A650 PRO 0.2.0-preview.2 для Windows x64' \
+            --title 'ONI A650 PRO 0.2.0-preview.3 для Windows x64' \
             --notes-file notes.md
