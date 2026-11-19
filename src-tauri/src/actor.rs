@@ -980,6 +980,18 @@ mod telemetry_tests {
     }
 
     #[test]
+    fn invalid_physical_fc03_reply_revokes_write_permission() {
+        let mut drive = DriveSession::default();
+        drive.simulated = false;
+        drive.accept_reading(0x3002, 1, &response(&[1, 3, 2, 0, 1])).unwrap();
+        drive.guard.read_only = false;
+        assert!(drive.accept_reading(0x3002, 1, &response(&[1, 4, 2, 0, 1])).is_err());
+        assert!(drive.guard.read_only);
+        assert!(!drive.connected);
+        assert_eq!(drive.sample(0x3002), None);
+    }
+
+    #[test]
     fn malformed_reply_cannot_refresh_a_physical_sample() {
         let mut drive = DriveSession::default();
         drive.simulated = false;
