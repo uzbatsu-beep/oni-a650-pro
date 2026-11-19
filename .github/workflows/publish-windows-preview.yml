@@ -1,11 +1,15 @@
-name: Publish Windows v0.2.0-preview.1
+name: Publish Windows v0.2.0-preview.2
+
 on:
   push:
-    branches: [release/v0.2.0-preview.1]
+    branches: [release/v0.2.0-preview.2]
+
 permissions: {}
+
 concurrency:
-  group: publish-oni-a650-pro-v0.2.0-preview.1
+  group: publish-oni-a650-pro-v0.2.0-preview.2
   cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-24.04
@@ -15,33 +19,67 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      RELEASE_TAG: v0.2.0-preview.1
-      SOURCE_SHA: 0546bbfa6d1848378b5d1381c824ee1eaf38e004
-      ARTIFACT_ID: '14442582158'
-      ZIP_NAME: oni-a650-pro-0.2.0-preview.1-windows-x64.zip
-      ZIP_SHA256: c6fd2e294a9774d25496a9b3cda7d5d1a32f10eee8b69b7918221212e3c7a1f8
+      RELEASE_TAG: v0.2.0-preview.2
+      SOURCE_SHA: 09210df4840f68985a57d2db8576279f2bf431d6
+      SOURCE_RUN_ID: '44448850660'
+      ARTIFACT_ID: '14494517525'
+      ZIP_NAME: oni-a650-pro-0.2.0-preview.2-windows-x64.zip
+      ZIP_SHA256: 2763846b0f3ba82bd53cedb4dc8f43cf8c5e898bc477cfea4b5703dc067ef2ce
+
     steps:
-      - name: Verify Windows build and publish prerelease
+      - name: Verify Windows CI and exact artifact source
         shell: bash
         run: |
           set -euo pipefail
-          build_sha=$(gh api "repos/$GH_REPO/actions/artifacts/$ARTIFACT_ID" --jq '.workflow_run.head_sha')
-          test "$build_sha" = "$SOURCE_SHA"
+          run_json=$(gh api "repos/$GH_REPO/actions/runs/$SOURCE_RUN_ID")
+          test "$(jq -r '.head_sha' <<<"$run_json")" = "$SOURCE_SHA"
+          test "$(jq -r '.head_branch' <<<"$run_json")" = 'main'
+          test "$(jq -r '.status' <<<"$run_json")" = 'completed'
+          test "$(jq -r '.conclusion' <<<"$run_json")" = 'success'
+          artifact_json=$(gh api "repos/$GH_REPO/actions/artifacts/$ARTIFACT_ID")
+          test "$(jq -r '.workflow_run.id' <<<"$artifact_json")" = "$SOURCE_RUN_ID"
+          test "$(jq -r '.workflow_run.head_sha' <<<"$artifact_json")" = "$SOURCE_SHA"
+          test "$(jq -r '.expired' <<<"$artifact_json")" = 'false'
+          test "$(jq -r '.digest' <<<"$artifact_json")" = "sha256:$ZIP_SHA256"
+
+      - name: Download, verify and publish Windows prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "::error::Release $RELEASE_TAG already exists; refusing to overwrite it"
+            exit 1
+          fi
           gh api "repos/$GH_REPO/actions/artifacts/$ARTIFACT_ID/zip" > "$ZIP_NAME"
           printf '%s  %s\n' "$ZIP_SHA256" "$ZIP_NAME" > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
           unzip -t "$ZIP_NAME"
+          unzip -Z1 "$ZIP_NAME" | grep -Fxq 'oni-a650-pro.exe'
           cat > notes.md <<'NOTES'
-          Предварительный выпуск конфигуратора ONI A650 / A650M для стендовой проверки на Windows x64.
+          ## ONI A650 PRO 0.2.0-preview.2 — Windows x64
 
-          **Запуск.** Скачайте ZIP из раздела Assets, распакуйте и запустите `oni-a650-pro.exe`. На компьютере должен быть установлен Microsoft Edge WebView2 Runtime. Стили и интерфейс входят в приложение.
+          Preliminary stand-test build from the latest tested main commit 09210df, including merged PR #4.
 
-          **Телеметрия.** Выходное напряжение U00.02, выходной ток U00.03 и напряжение звена DC U00.06 отображаются после подтверждённого ответа FC03 текущего ПЧ. Подтверждённый ноль отображается числом, пропущенные и устаревшие показания — знаком «—». При наведении на число можно посмотреть raw.
+          ### Changes since preview.1
+          - The full 617-parameter A650M Edition 3 catalog is visible, from F00 through H00.47. The previous 180-row display limit is removed.
+          - Group navigation includes F22; full-text search and the All / Changed filters remain available.
+          - Compact and full terminal layouts now have explicit switches, with a safe fallback when a selected terminal is absent.
+          - ONI branding, upper-right theme and palette controls, and accessible About/help dialog.
+          - Existing read-only FC03 telemetry: confirmed zero is displayed as zero; absent or stale U/I/DC readings display a dash.
 
-          **Проверки.** На Windows Server 2022 прошли 9 тестов Rust, сборка EXE и открытие окна. Стендовая приёмка этой ревизии на Windows 10 с физическим ПЧ остаётся открытой. Для первого сравнения с панелью ПЧ используйте режим «Только чтение».
+          ### Installation
+          Download the Windows x64 ZIP asset, extract it, then run `oni-a650-pro.exe`. Microsoft Edge WebView2 Runtime must be installed. No separate frontend installation is required.
 
-          [Исходный коммит](https://github.com/uzbatsu-beep/oni-a650-pro/commit/0546bbfa6d1848378b5d1381c824ee1eaf38e004) · [Проверки Windows](https://github.com/uzbatsu-beep/oni-a650-pro/actions/runs/44337586988)
+          ### Verification and limitations
+          - Source commit: `09210df4840f68985a57d2db8576279f2bf431d6`.
+          - Windows Server 2022 CI: 9 Rust tests passed, release EXE built, desktop window opened successfully.
+          - The user interface of PR #4 was checked in Qt WebEngine with 617 entries; the physical inverter was **not** tested with this build.
+          - Start physical bench verification in **Read-Only** mode. Compare U00.02 / U00.03 / U00.06 and raw registers with the inverter panel.
+          - Parameter writes and drive control are **not yet approved for unrestricted physical use**; SafetyGuard and numeric range validation require strengthening.
+
+          [Source commit](https://github.com/uzbatsu-beep/oni-a650-pro/commit/09210df4840f68985a57d2db8576279f2bf431d6) · [Verified Windows CI](https://github.com/uzbatsu-beep/oni-a650-pro/actions/runs/44448850660) · [PR #4](https://github.com/uzbatsu-beep/oni-a650-pro/pull/4)
           NOTES
           gh release create "$RELEASE_TAG" "$ZIP_NAME" SHA256SUMS.txt \
             --target "$SOURCE_SHA" --prerelease \
-            --title 'ONI A650 PRO 0.2.0-preview.1 для Windows x64' --notes-file notes.md
+            --title 'ONI A650 PRO 0.2.0-preview.2 для Windows x64' \
+            --notes-file notes.md
