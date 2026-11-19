@@ -27,6 +27,7 @@ pub struct SerialPortInfoDto {
 pub struct ConnectionStatusDto {
     pub simulated: bool,
     pub connected: bool,
+    pub write_enabled: bool,
     pub port_name: String,
     pub baud_rate: u32,
     pub frame_format: String,
@@ -44,6 +45,7 @@ pub struct ConnectionStatusDto {
 pub struct DriveTelemetryDto {
     pub connected: bool,
     pub simulated: bool,
+    pub write_enabled: bool,
     pub state_code: u16,
     pub status_bits: u16,
     pub fault_code: u16,
@@ -127,10 +129,8 @@ impl Default for DriveSession {
         for p in &parameters {
             if p.access == "RW" {
                 if let Ok(addrs) = parameter_addresses(&p.param_id) {
+                    // Only RAM register writes are exposed through generic FC06.
                     guard.writable_addresses.insert(addrs.ram);
-                    if let Some(ee) = addrs.eeprom {
-                        guard.writable_addresses.insert(ee);
-                    }
                 }
             }
         }
@@ -256,6 +256,8 @@ fn read_modbus_rtu_response(
 
 impl DriveSession {
     fn reset_measurements(&mut self) {
+        // Connection changes always revoke the operator's write unlock.
+        self.guard.read_only = true;
         self.measured.clear();
         self.connected = false;
         self.poll_step_idx = 0;
@@ -282,6 +284,7 @@ impl DriveSession {
         ConnectionStatusDto {
             simulated: self.simulated,
             connected: self.connected,
+            write_enabled: !self.guard.read_only,
             port_name: self.port_name.clone(),
             baud_rate: self.baud_rate,
             frame_format: self.frame_format.clone(),
@@ -419,16 +422,54 @@ impl DriveSession {
         Ok(res.tx_hex)
     }
 
+    fn reject_write(&mut self, address: u16, value: u16, reason: String) -> Result<RegisterExchangeResultDto, String> {
+        self.record_audit("write_rejected", serde_json::json!({
+            "address": format!("0x{:04X}", address),
+            "raw_value": value,
+            "reason": reason,
+            "simulated": self.simulated,
+        }));
+        Err(reason)
+    }
+
     pub fn write_register_safe_ex(
         &mut self,
         address: u16,
         value: u16,
-        stop_only_code: Option<&str>,
+        _stop_only_code: Option<&str>, // Legacy UI hint is never trusted.
     ) -> Result<RegisterExchangeResultDto, String> {
-        let is_running = self.sim_regs.get(&0x2100).copied().unwrap_or(4) == 1;
-        self.guard
-            .check_write(self.slave_id, address, is_running, stop_only_code)
-            .map_err(|e| e.to_string())?;
+        // Reject forbidden writes before any physical bus I/O.
+        if let Err(err) = self.guard.check_address(self.slave_id, address) {
+            return self.reject_write(address, value, err.to_string());
+        }
+
+        // FC03 state query MUST occur immediately before FC06 within the same
+        // locked DriveSession. Never use simulator cache for physical writes.
+        let fresh_state = if self.simulated {
+            self.sim_regs.get(&0x2100).copied()
+        } else {
+            if !self.connected {
+                self.guard.read_only = true;
+                return self.reject_write(address, value,
+                    "FC06 denied: physical connection not verified; SafetyGuard re-locked".to_string());
+            }
+            match self.read_registers_ex(0x2100, 1) {
+                Ok(result) => result.values.first().copied(),
+                Err(err) => {
+                    self.guard.read_only = true;
+                    return self.reject_write(address, value, format!(
+                        "FC06 denied: fresh FC03 state 0x2100 unavailable ({}); SafetyGuard re-locked", err
+                    ));
+                }
+            }
+        };
+
+        let parameter = self.parameters.iter().find(|p| {
+            p.access == "RW" && parameter_addresses(&p.param_id).ok().map(|a| a.ram) == Some(address)
+        });
+        if let Err(err) = self.guard.check_write(self.slave_id, address, value, fresh_state, parameter) {
+            return self.reject_write(address, value, err.to_string());
+        }
 
         let req = WriteRegisterRequest::new(self.slave_id, address, value)
             .map_err(|e| e.to_string())?;
@@ -504,20 +545,26 @@ impl DriveSession {
                 Err(_) => {
                     self.err_count += 1;
                     self.serial_handle = None;
+                    self.connected = false;
+                    self.measured.clear();
+                    self.guard.read_only = true;
                     let msg = SafetyError::WriteOutcomeUnknown { address, value }.to_string();
                     self.last_error = Some(msg.clone());
-                    return Err(msg);
+                    return self.reject_write(address, value, msg);
                 }
             };
 
             let rx_s = format_hex(&rx_buf);
             self.last_rx_hex = rx_s.clone();
-            parse_write_response(req, &rx_buf).map_err(|e| {
+            if let Err(err) = parse_write_response(req, &rx_buf) {
                 self.err_count += 1;
-                let msg = format!("{} (RX: {})", e, rx_s);
+                self.connected = false;
+                self.measured.clear();
+                self.guard.read_only = true;
+                let msg = format!("FC06 echo unverified on 0x{:04X}: {} (RX: {}); Read-Only enabled", address, err, rx_s);
                 self.last_error = Some(msg.clone());
-                msg
-            })?;
+                return self.reject_write(address, value, msg);
+            }
             self.rx_count += 1;
             self.connected = true;
             self.last_error = None;
@@ -718,6 +765,7 @@ impl DriveSession {
         DriveTelemetryDto {
             connected: self.connected,
             simulated: self.simulated,
+            write_enabled: !self.guard.read_only,
             state_code,
             status_bits,
             fault_code,
@@ -842,6 +890,46 @@ mod telemetry_tests {
         let mut frame = payload.to_vec();
         frame.extend_from_slice(&crc16_modbus(payload).to_le_bytes());
         frame
+    }
+
+    #[test]
+    fn physical_write_does_not_trust_cached_stop_when_disconnected() {
+        let mut drive = DriveSession::default();
+        drive.simulated = false;
+        drive.connected = false;
+        drive.guard.read_only = false;
+        drive.sim_regs.insert(0x2100, 4);
+        assert!(drive.write_register_safe_ex(0x2001, 5000, None).is_err());
+        assert_eq!(drive.tx_count, 0);
+        assert!(drive.guard.read_only);
+    }
+
+    #[test]
+    fn legacy_client_stop_hint_cannot_bypass_a_running_motor_interlock() {
+        let mut drive = DriveSession::default();
+        drive.guard.read_only = false;
+        drive.sim_regs.insert(0x2100, 1);
+        assert!(drive.write_register_safe_ex(0x0101, 0, None).is_err());
+        assert_eq!(drive.tx_count, 0);
+    }
+
+    #[test]
+    fn eeprom_write_is_blocked_before_modbus_io() {
+        let mut drive = DriveSession::default();
+        drive.guard.read_only = false;
+        assert!(drive.write_register_safe_ex(0x8101, 1, None).is_err());
+        assert_eq!(drive.tx_count, 0);
+    }
+
+    #[test]
+    fn connecting_or_disconnecting_revokes_previous_unlock() {
+        let mut drive = DriveSession::default();
+        drive.guard.read_only = false;
+        drive.disconnect();
+        assert!(drive.guard.read_only);
+        drive.guard.read_only = false;
+        drive.connect_or_configure(true, "COM1".into(), 9600, "8N1".into(), 1, 400).unwrap();
+        assert!(drive.guard.read_only);
     }
 
     #[test]
