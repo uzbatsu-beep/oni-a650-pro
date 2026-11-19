@@ -11,7 +11,7 @@ address_hex,address_dec,name,access,data_type,scale,unit,min_value,max_value,sou
 0x2101,8449,Drive status bits (Слово состояния ПЧ),R,bitfield16,1,,0,65535,ONI_A650M_Manual.pdf App.A.4.5,high,no,"Bit0: 0=valid/1=neg; Bit1: 0=Вперед/1=Назад; Bits2..3: канал команд (00=Пульт, 01=Клеммы, 10=Связь)"
 0x2102,8450,Current fault code (Код текущей неисправности),R,uint16,1,Err code,0,40,ONI_A650M_Manual.pdf App.A.4.5,high,no,0=Нет ошибки; 1..40 соответствуют кодам Err01..Err40
 0x2103,8451,Current warning code (Код текущего предупреждения),R,uint16,1,Warn code,0,65535,ONI_A650M_Manual.pdf App.A.4.5,high,no,Код активного предупреждения (A.xxx)
-0x3000,12288,"U00.00 Рабочая частота, Гц",R,uint16,0.01,Hz,0,65535,ONI_A650M_Manual.pdf Table 5.2 Group U00,high,no,Регистр оперативного мониторинга группы U00
+0x3000,12288,"U00.00 Рабочая частота, Гц",R,int16,0.01,Hz,-32768,32767,ONI_A650M_Manual.pdf Table 5.2 Group U00,high,no,Регистр U00; F15.08=0 signed forward/reverse; F15.08=1 absolute value
 0x3001,12289,"U00.01 Настройка частоты, Гц",R,uint16,0.01,Hz,0,65535,ONI_A650M_Manual.pdf Table 5.2 Group U00,high,no,Регистр оперативного мониторинга группы U00
 0x3002,12290,"U00.02 Выходное напряжение, В",R,uint16,1,V,0,65535,ONI_A650M_Manual.pdf Table 5.2 Group U00,high,no,Регистр оперативного мониторинга группы U00
 0x3003,12291,"U00.03 Выходной ток, А",R,uint16,0.1,A,0,65535,ONI_A650M_Manual.pdf Table 5.2 Group U00,high,no,Регистр оперативного мониторинга группы U00
