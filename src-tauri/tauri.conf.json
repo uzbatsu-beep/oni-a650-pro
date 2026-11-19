@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "ONI A650 / A650M — Инженерный конфигуратор PRO 2.0",
+        "title": "ONI A650M — Инженерный конфигуратор PRO 2.0",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
