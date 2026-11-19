@@ -522,6 +522,7 @@ impl DriveSession {
             if let Err(e) = self.ensure_port_open() {
                 self.err_count += 1;
                 self.connected = false;
+                self.guard.read_only = true;
                 self.last_error = Some(e.clone());
                 return Err(e);
             }
@@ -641,6 +642,7 @@ impl DriveSession {
                 self.err_count += 1;
                 self.connected = false;
                 self.measured.clear();
+                self.guard.read_only = true;
                 self.last_error = Some(e.clone());
                 return Err(e);
             }
@@ -665,6 +667,7 @@ impl DriveSession {
                     self.err_count += 1;
                     self.connected = false;
                     self.measured.clear();
+                    self.guard.read_only = true;
                     // Re-open on next attempt if OS serial handle glitched
                     self.serial_handle = None;
                     let msg = format!(
@@ -704,6 +707,7 @@ impl DriveSession {
             } else {
                 self.connected = false;
                 self.measured.clear();
+                self.guard.read_only = true;
             }
         })?;
         let received = Instant::now();
