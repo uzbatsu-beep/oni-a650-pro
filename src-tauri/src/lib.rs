@@ -9,6 +9,7 @@ pub mod safety;
 
 #[cfg(test)]
 mod tests {
+    use super::actor::decode_output_frequency_hz;
     use super::addresses::{normalize_studio_catalog_entry, parameter_addresses};
     use super::catalog::{load_embedded_faults, load_embedded_parameters};
     use super::modbus::{
@@ -17,6 +18,15 @@ mod tests {
     };
     use super::ods::{parse_studio_profile, serialize_studio_profile};
     use super::safety::{SafetyError, SafetyGuard};
+
+    #[test]
+    fn test_signed_frequency_u00_00_f15_08_default_mode() {
+        assert_eq!(decode_output_frequency_hz(0x1388), 50.0);
+        assert_eq!(decode_output_frequency_hz(0xEC78), -50.0);
+        assert_eq!(decode_output_frequency_hz(0x0000), 0.0);
+        assert_eq!(decode_output_frequency_hz(0xFFFF), -0.01);
+        assert_eq!(decode_output_frequency_hz(0x8000), -327.68);
+    }
 
     #[test]
     fn test_address_arithmetic_f_h_u_groups() {
