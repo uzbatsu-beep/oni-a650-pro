@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
-const { pumpSettings, pidSettings, makePlan, applyPlan, profileRows } = require('../wizard-profile.js');
+const { pumpSettings, pidSettings, makePlan, applyPlan, profileRows, profileText, readRaw } = require('../wizard-profile.js');
 
 const html = readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 const catalog = JSON.parse(html.match(/const PARAM_CATALOG = (\[.*\]);/)[1]);
@@ -32,7 +32,7 @@ test('all four pump modes and optional settings export exactly the preview on a 
 });
 
 test('turning off the cascade changes only H00.00 and exports its explicit zero', () => {
-  const values = { ...defaults, 'H00.42': '3' }, explicit = new Set();
+  const values = { ...defaults, 'H00.42': '3' }, explicit = new Set(['H00.42']);
   const plan = makePlan(pumpSettings({ ...pump, enabled: false }), byId);
   assert.deepEqual(plan.map(p => p.id), ['H00.00']);
   applyPlan(plan, values, explicit);
@@ -53,4 +53,49 @@ test('invalid codes, increments, blank input and invalid pressure cannot yield a
     assert.throws(() => makePlan(pumpSettings({ ...pump, ...change }), byId));
   }
   assert.throws(() => pidSettings({ range: 6, target: 7 }));
+});
+
+test('ODS keeps selected setpoints separate from signed and unsigned FC03 values', () => {
+  const values = { ...defaults, 'F03.01': '15.0', 'F06.01': '-1.2', 'U00.02': '380', 'F03.00': '12.0' };
+  const explicit = new Set(['F03.01', 'F06.01']);
+  const readings = new Map([['U00.02', readRaw(byId.get('U00.02'), 380)],
+    ['U00.00', readRaw(byId.get('U00.00'), 60536)], ['F03.01', 17], ['F04.00', 0]]);
+  const connection = { portName: 'COM7', slaveId: 23, baudRate: 19200, frameFormat: '1-8-E-1', simulated: false };
+  const text = profileText('A650M', connection, true, catalog, values, explicit, readings);
+  assert.equal(text.charCodeAt(0), 0xfeff);
+  const lines = text.split('\r\n');
+  assert.deepEqual(lines.slice(lines.indexOf('[Parameter Set]') + 1, lines.indexOf('[Parameter Read]') - 1),
+    ['F03.01 = 150', 'F06.01 = -12']);
+  assert.deepEqual(lines.slice(lines.indexOf('[Parameter Read]') + 1, lines.indexOf('[Check Parameter]') - 1),
+    ['F03.01 = 17', 'F04.00 = 0', 'U00.00 = -5000', 'U00.02 = 380']);
+  for (const field of ['Port = COM7', 'Address = 23', 'BaudRate = 19200', 'FrameFormat = 8E1',
+    'Transport = RS-485', 'ConnectionSource = Confirmed']) assert.ok(lines.includes(field));
+  for (const invalid of [-1, 65536, 0.5, null]) assert.throws(() => readRaw(byId.get('F03.01'), invalid));
+});
+
+test('manual profile validation rejects read-only, unknown, reserved, off-step and out-of-range values', () => {
+  for (const [id, input] of [['U00.02', '380'], ['F99.99','1'], ['F05.02','24'], ['F03.01','-1'],
+    ['F03.01','0.01'], ['F03.01',''], ['F08.01','----'], ['F03.01','Infinity']]) {
+    assert.throws(() => profileRows(catalog, { ...defaults, [id]: input }, new Set([id])), { message: new RegExp(id) });
+  }
+  assert.deepEqual(profileRows(catalog, { ...defaults, 'U00.02': '380', 'F03.01': '3' }, new Set()), []);
+});
+
+test('local reference bounds use the current engineering values and require a defined limit', () => {
+  const values = { ...defaults, 'F01.08': '60', 'F01.09': '55' };
+  assert.deepEqual(profileRows(catalog, values, new Set(['F01.09'])), ['F01.09 = 5500']);
+  for (const max of ['54.99', '----', '']) {
+    assert.throws(() => profileRows(catalog, { ...values, 'F01.08': max }, new Set(['F01.09'])));
+  }
+});
+
+test('offline headers describe selected settings and distinguish simulation', () => {
+  const cfg = { portName: '', baudRate: 38400, frameFormat: '1-8-O-1', simulated: true, slaveId: 4 };
+  const text = profileText('A650M', cfg, false, catalog, defaults, new Set(), new Map());
+  assert.match(text, /Transport = Simulator\r\nConnectionSource = Selected/);
+  assert.match(text, /FrameFormat = 8O1/);
+  assert.doesNotMatch(text, /Port =|COM3|\r\nBaud =/);
+  for (const change of [{ slaveId: 0 }, { baudRate: 0 }, { frameFormat: '' }, { portName: 'COM1\r\n' }, { simulated: false }]) {
+    assert.throws(() => profileText('A650M', { ...cfg, ...change }, false, catalog, defaults, new Set(), new Map()));
+  }
 });

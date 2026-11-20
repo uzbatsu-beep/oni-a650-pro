@@ -33,20 +33,43 @@
     };
   }
 
-  function makePlan(values, catalog) {
+  function numeric(input) {
+    if (typeof input === 'number') return input;
+    if (typeof input !== 'string' || !/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?$/i.test(input.trim())) return NaN;
+    return Number(input);
+  }
+
+  function resolveLimit(limit, values, catalog) {
+    const literal = numeric(limit);
+    if (Number.isFinite(literal)) return literal;
+    const match = /^(-?)([A-Z]\d{2}\.\d{2})$/.exec(limit);
+    if (match) {
+      const id = match[2];
+      const value = numeric(values[id] ?? catalog.get(id)?.def);
+      if (Number.isFinite(value)) return match[1] ? -value : value;
+    }
+    throw new Error('Не определена граница ' + limit + '. Прочитайте или задайте связанный параметр.');
+  }
+
+  function makePlan(values, catalog, context = {}) {
+    const effective = { ...context, ...values };
     return Object.entries(values).map(([id, input]) => {
-      const parameter = catalog.get(id);
-      const value = Number(input);
-      if (!parameter || parameter.rw !== 'RW') throw new Error('Недоступный параметр ' + id);
-      const raw = value / parameter.sc;
-      if (input == null || String(input).trim() === '' || !Number.isFinite(raw)
-          || value < Number(parameter.min) || value > Number(parameter.max)
-          || Math.abs(raw - Math.round(raw)) > 1e-7) {
-        throw new Error(id + ' · допустимо ' + parameter.min + '…' + parameter.max + ', шаг ' + parameter.sc);
+      const p = catalog.get(id);
+      if (!p || p.rw !== 'RW' || p.rwMode === 0) throw new Error('Недоступный для записи параметр ' + id);
+      const value = numeric(input);
+      const scaled = value / p.sc;
+      const raw = Math.round(scaled);
+      const signed = p.dt === 'int16';
+      const min = resolveLimit(p.min, effective, catalog);
+      const max = resolveLimit(p.max, effective, catalog);
+      if (!Number.isFinite(scaled) || p.sc <= 0 || value < min || value > max
+          || raw < (signed ? -32768 : 0) || raw > (signed ? 32767 : 65535)
+          || Math.abs(scaled - raw) > 1e-7) {
+        throw new Error(id + ' · допустимо ' + min + '…' + max + ', шаг ' + p.sc);
       }
-      const option = parameter.en.split(';').find(entry => entry.split('=')[0] === String(value));
-      if (parameter.dt === 'enum16' && !option) throw new Error('Неизвестный вариант ' + id);
-      return { id, value: String(value), raw: Math.round(raw), label: option ? option.slice(option.indexOf('=') + 1) : '' };
+      const option = p.en.split(';').find(entry => entry.split('=')[0] === String(value));
+      if (p.dt === 'enum16' && !option) throw new Error('Неизвестный вариант ' + id);
+      return { id, value: String(value), raw, label: option ? option.slice(option.indexOf('=') + 1) : '' };
     });
   }
 
@@ -58,20 +81,36 @@
   }
 
   function profileRows(catalog, values, explicit) {
-    const rows = [];
-    for (const p of catalog) {
-      const value = values[p.id];
-      if (value === '----' || (!explicit.has(p.id) && String(value) === String(p.def))) continue;
-      const raw = Number(value) / p.sc;
-      if (value == null || String(value).trim() === '' || !Number.isFinite(raw)) {
-        throw new Error('Проверьте значение ' + p.id + ' перед экспортом.');
-      }
-      rows.push(p.id + ' = ' + Math.round(raw));
-    }
-    return rows;
+    const byId = new Map(catalog.map(p => [p.id, p]));
+    const selected = Object.fromEntries([...explicit].sort().map(id => [id, values[id]]));
+    return makePlan(selected, byId, values).map(row => row.id + ' = ' + row.raw);
   }
 
-  const api = { pumpSettings, pidSettings, makePlan, applyPlan, profileRows };
+  function readRaw(parameter, word) {
+    if (!Number.isInteger(word) || word < 0 || word > 65535) throw new Error('Некорректный ответ FC03 для ' + parameter.id);
+    return parameter.dt === 'int16' && word >= 0x8000 ? word - 0x10000 : word;
+  }
+
+  function profileText(model, connection, confirmed, catalog, values, explicit, readings) {
+    const { portName, slaveId, baudRate, frameFormat, simulated } = connection;
+    const frame = /^1-(8)-([NEO])-([12])$/.exec(frameFormat);
+    if (!frame || !Number.isInteger(slaveId) || slaveId < 1 || slaveId > 247
+        || !Number.isInteger(baudRate) || baudRate <= 0 || typeof portName !== 'string'
+        || /[\r\n]/.test(portName) || (!simulated && !portName.trim())) throw new Error('Проверьте параметры подключения перед экспортом.');
+    const lines = ['\uFEFF; Файл конфигурации ONI Drive Studio', '[General]', 'Model = ПЧ ONI ' + model,
+      'Address = ' + slaveId];
+    if (portName) lines.push('Port = ' + portName);
+    lines.push('BaudRate = ' + baudRate, 'FrameFormat = ' + frame.slice(1).join(''),
+      'Transport = ' + (simulated ? 'Simulator' : 'RS-485'), 'ConnectionSource = ' + (confirmed ? 'Confirmed' : 'Selected'),
+      '', '[Parameter Set]', ...profileRows(catalog, values, explicit), '', '[Parameter Read]');
+    for (const p of catalog) {
+      if (readings.has(p.id)) lines.push(p.id + ' = ' + readings.get(p.id));
+    }
+    lines.push('', '[Check Parameter]', '');
+    return lines.join('\r\n');
+  }
+
+  const api = { pumpSettings, pidSettings, makePlan, applyPlan, profileRows, readRaw, profileText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WizardProfile = api;
 })(typeof window !== 'undefined' ? window : globalThis);
