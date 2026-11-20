@@ -36,8 +36,10 @@ mod gui_app {
     #[tauri::command]
     pub fn get_connection_status(
         state: tauri::State<'_, SharedDriveState>,
+        session_id: u64,
     ) -> Result<ConnectionStatusDto, String> {
         let sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
         Ok(sess.status_dto())
     }
 
@@ -83,17 +85,21 @@ mod gui_app {
     #[tauri::command]
     pub fn poll_drive_telemetry(
         state: tauri::State<'_, SharedDriveState>,
+        session_id: u64,
     ) -> Result<DriveTelemetryDto, String> {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
         sess.poll_telemetry()
     }
 
     #[tauri::command]
     pub fn set_safety_allow_write(
         state: tauri::State<'_, SharedDriveState>,
+        session_id: u64,
         allow_write: bool,
     ) -> Result<bool, String> {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
         // Operator unlock is only possible on an offline simulator or a verified
         // live connection; reconnect/disconnect revokes any prior permission.
         if allow_write && !sess.simulated && !sess.connected {
@@ -114,21 +120,25 @@ mod gui_app {
     #[tauri::command]
     pub fn write_register_fc06(
         state: tauri::State<'_, SharedDriveState>,
+        session_id: u64,
         address: u16,
         value: u16,
         stop_only_code: Option<String>,
     ) -> Result<RegisterExchangeResultDto, String> {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
         sess.write_register_safe_ex(address, value, stop_only_code.as_deref())
     }
 
     #[tauri::command]
     pub fn read_registers_fc03(
         state: tauri::State<'_, SharedDriveState>,
+        session_id: u64,
         address: u16,
         count: u16,
     ) -> Result<RegisterExchangeResultDto, String> {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
         sess.read_registers_ex(address, count)
     }
 

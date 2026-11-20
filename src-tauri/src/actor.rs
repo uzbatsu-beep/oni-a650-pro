@@ -25,6 +25,7 @@ pub struct SerialPortInfoDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionStatusDto {
+    pub session_id: u64,
     pub simulated: bool,
     pub connected: bool,
     pub write_enabled: bool,
@@ -94,6 +95,7 @@ const TELEMETRY_SINGLE_REG_POLL_ORDER: [u16; 6] = [
 ];
 
 pub struct DriveSession {
+    session_id: u64,
     pub model: String,
     pub slave_id: u8,
     pub simulated: bool,
@@ -148,6 +150,7 @@ impl Default for DriveSession {
         sim_regs.insert(0x3006, 538);  // U00.06 Напряжение шины DC (В)
 
         Self {
+            session_id: 0,
             model: "A650M".to_string(),
             slave_id: 1,
             simulated: true,
@@ -255,10 +258,21 @@ fn read_modbus_rtu_response(
 }
 
 impl DriveSession {
+    pub fn require_session(&self, session_id: u64) -> Result<(), String> {
+        if session_id != self.session_id {
+            return Err("Сеанс подключения изменился. Повторите операцию для выбранного ПЧ.".into());
+        }
+        Ok(())
+    }
+
     fn reset_measurements(&mut self) {
+        self.session_id += 1;
         // Connection changes always revoke the operator's write unlock.
         self.guard.read_only = true;
         self.measured.clear();
+        self.last_tx_hex.clear();
+        self.last_rx_hex.clear();
+        self.last_rtt_ms = 0;
         self.connected = false;
         self.poll_step_idx = 0;
     }
@@ -282,6 +296,7 @@ impl DriveSession {
 
     pub fn status_dto(&self) -> ConnectionStatusDto {
         ConnectionStatusDto {
+            session_id: self.session_id,
             simulated: self.simulated,
             connected: self.connected,
             write_enabled: !self.guard.read_only,
@@ -894,6 +909,19 @@ mod telemetry_tests {
         let mut frame = payload.to_vec();
         frame.extend_from_slice(&crc16_modbus(payload).to_le_bytes());
         frame
+    }
+
+    #[test]
+    fn reconnect_and_disconnect_revoke_prior_session_and_write_permission() {
+        let mut drive = DriveSession::default();
+        let first = drive.connect_or_configure(true, "COM7".into(), 9600, "8N2".into(), 1, 400).unwrap();
+        drive.guard.read_only = false;
+        let second = drive.connect_or_configure(true, "COM7".into(), 9600, "8N2".into(), 2, 400).unwrap();
+        assert!(drive.require_session(first.session_id).is_err());
+        assert!(drive.require_session(second.session_id).is_ok());
+        assert!(!second.write_enabled);
+        drive.disconnect();
+        assert!(drive.require_session(second.session_id).is_err());
     }
 
     #[test]
