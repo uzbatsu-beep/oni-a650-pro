@@ -44,8 +44,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test oscilloscope and wizard profiles
-        run: node --test ../ui/tests/scope-math.test.cjs ../ui/tests/wizard-profile.test.cjs
+      - name: Test drive sessions, oscilloscope and wizard profiles
+        run: node --test ../ui/tests/drive-session.test.cjs ../ui/tests/scope-math.test.cjs ../ui/tests/wizard-profile.test.cjs
       - name: Build Windows executable with embedded UI
         run: cargo build --locked --release --features tauri/custom-protocol
       - name: Check desktop startup
