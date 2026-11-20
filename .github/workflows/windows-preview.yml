@@ -10,19 +10,42 @@ permissions:
 jobs:
   windows:
     runs-on: windows-2022
+    outputs:
+      release_tag: ${{ steps.release.outputs.tag }}
+      artifact_id: ${{ steps.archive.outputs.artifact-id }}
+      artifact_digest: ${{ steps.archive.outputs.artifact-digest }}
     defaults:
       run:
         working-directory: src-tauri
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Identify a new preview release on main
+        id: release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: .
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          $notes = @(git diff --name-only --diff-filter=A $env:BEFORE_SHA $env:GITHUB_SHA -- 'docs/releases/v*-preview.*.md')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not compare release notes' }
+          if ($notes.Count -eq 0) { return }
+          if ($notes.Count -ne 1) { throw 'Expected one new preview release note' }
+          $tag = [IO.Path]::GetFileNameWithoutExtension($notes[0])
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ($tag -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+-preview\.[0-9]+$' -or $tag -cne "v$version") {
+            throw 'Release note must name the new Tauri preview version'
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
       - name: Test Rust core
         run: cargo test --locked --no-default-features
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test signed oscilloscope coordinates
-        run: node --test ../ui/tests/scope-math.test.cjs
+      - name: Test oscilloscope and wizard profiles
+        run: node --test ../ui/tests/scope-math.test.cjs ../ui/tests/wizard-profile.test.cjs
       - name: Build Windows executable with embedded UI
         run: cargo build --locked --release --features tauri/custom-protocol
       - name: Check desktop startup
@@ -43,7 +66,38 @@ jobs:
             if (!$process.HasExited) { Stop-Process -Id $process.Id }
           }
       - uses: actions/upload-artifact@v4
+        id: archive
         with:
           name: oni-a650-pro-windows-x64
           path: src-tauri/target/release/oni-a650-pro.exe
           if-no-files-found: error
+
+  publish:
+    needs: windows
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.windows.outputs.release_tag != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.windows.outputs.release_tag }}
+      ARTIFACT_ID: ${{ needs.windows.outputs.artifact_id }}
+      ZIP_SHA256: ${{ needs.windows.outputs.artifact_digest }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Publish tested Windows ZIP and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip_name="oni-a650-pro-${TAG#v}-windows-x64.zip"
+          gh api "repos/$GH_REPO/actions/artifacts/$ARTIFACT_ID/zip" > "$zip_name"
+          printf '%s  %s\n' "$ZIP_SHA256" "$zip_name" > SHA256SUMS.txt
+          sha256sum --check SHA256SUMS.txt
+          unzip -t "$zip_name"
+          test "$(unzip -Z1 "$zip_name")" = 'oni-a650-pro.exe'
+          gh release create "$TAG" "$zip_name" SHA256SUMS.txt --target "$GITHUB_SHA" --prerelease \
+            --title "ONI A650M ${TAG#v} для Windows x64" --notes-file "docs/releases/$TAG.md"
