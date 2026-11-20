@@ -45,7 +45,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test drive sessions, oscilloscope and wizard profiles
-        run: node --test ../ui/tests/drive-session.test.cjs ../ui/tests/scope-math.test.cjs ../ui/tests/wizard-profile.test.cjs
+        run: node --test ../ui/tests/drive-diagnostics.test.cjs ../ui/tests/drive-session.test.cjs ../ui/tests/scope-math.test.cjs ../ui/tests/wizard-profile.test.cjs
       - name: Build Windows executable with embedded UI
         run: cargo build --locked --release --features tauri/custom-protocol
       - name: Check desktop startup
