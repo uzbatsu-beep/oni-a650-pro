@@ -47,10 +47,10 @@ pub struct DriveTelemetryDto {
     pub connected: bool,
     pub simulated: bool,
     pub write_enabled: bool,
-    pub state_code: u16,
-    pub status_bits: u16,
-    pub fault_code: u16,
-    pub warning_code: u16,
+    pub state_code: Option<u16>,
+    pub status_bits: Option<u16>,
+    pub fault_code: Option<u16>,
+    pub warning_code: Option<u16>,
     pub output_freq_hz: Option<f64>,
     /// Raw FC03 holding register 0x3000, preserved for troubleshooting.
     pub output_freq_raw: Option<u16>,
@@ -85,13 +85,15 @@ pub fn decode_output_frequency_hz(raw: u16) -> f64 {
     f64::from(raw as i16) / 100.0
 }
 
-const TELEMETRY_SINGLE_REG_POLL_ORDER: [u16; 6] = [
+const TELEMETRY_SINGLE_REG_POLL_ORDER: [u16; 8] = [
     0x3000, // U00.00 Рабочая частота (0.01 Гц)
+    0x2100, // Operating state
+    0x2102, // Current fault (also read outside the fault state to confirm clearance)
+    0x2101, // Drive status word including output direction
     0x3003, // U00.03 Выходной ток (0.1 А)
     0x3006, // U00.06 Напряжение шины DC (1 В)
     0x3002, // U00.02 Выходное напряжение (1 В)
     0x3001, // U00.01 Настройка частоты (0.01 Гц)
-    0x2100, // Текущее состояние ПЧ (2100H)
 ];
 
 pub struct DriveSession {
@@ -281,7 +283,7 @@ impl DriveSession {
         if self.simulated {
             return self.sim_regs.get(&address).copied();
         }
-        // Six channels, nominally one request every 350 ms. Allow two normal sweeps.
+        // One nominal eight-register sweep takes 2.8 s at a 350 ms tick.
         let (value, received) = self.measured.get(&address)?;
         (self.connected && received.elapsed() <= Duration::from_secs(5)).then_some(*value)
     }
@@ -584,7 +586,6 @@ impl DriveSession {
             self.rx_count += 1;
             self.connected = true;
             self.last_error = None;
-            self.sim_regs.insert(address, value);
             rx_s
         };
 
@@ -728,8 +729,11 @@ impl DriveSession {
         let received = Instant::now();
         for (index, &value) in values.iter().enumerate() {
             if let Some(addr) = address.checked_add(index as u16) {
-                self.sim_regs.insert(addr, value);
-                if TELEMETRY_SINGLE_REG_POLL_ORDER.contains(&addr) {
+                // A fault transition invalidates the code from the previous operating state.
+                if addr == 0x2100 && self.sample(addr).map(|old| old == 6) != Some(value == 6) {
+                    self.measured.remove(&0x2102);
+                }
+                if TELEMETRY_SINGLE_REG_POLL_ORDER.contains(&addr) || addr == 0x2103 {
                     self.measured.insert(addr, (value, received));
                 }
             }
@@ -739,40 +743,26 @@ impl DriveSession {
     }
 
     /// Polls drive telemetry using single-register requests (`count = 1`) in round-robin order.
-    /// This guarantees compatibility with ONI A650 / A650M firmware that rejects block reads or 0x2103.
+    /// Optional warning word 0x2103 is not required by the dashboard.
     pub fn poll_telemetry(&mut self) -> Result<DriveTelemetryDto, String> {
         if !self.simulated {
             let reg_addr =
                 TELEMETRY_SINGLE_REG_POLL_ORDER[self.poll_step_idx % TELEMETRY_SINGLE_REG_POLL_ORDER.len()];
             self.poll_step_idx = (self.poll_step_idx + 1) % TELEMETRY_SINGLE_REG_POLL_ORDER.len();
 
-            match self.read_registers_ex(reg_addr, 1) {
-                Ok(_) => {
-                    // If drive state is fault (6), also query fault code 0x2102 as a single register
-                    if reg_addr == 0x2100 && self.sim_regs.get(&0x2100).copied().unwrap_or(4) == 6 {
-                        let _ = self.read_registers_ex(0x2102, 1);
-                    }
-                }
-                Err(_) => {
-                    // Older drives may reject the status register. Only use a recent
-                    // frequency from this device for the existing compatibility fallback.
-                    if reg_addr == 0x2100 {
-                        if let Some(frequency) = self.sample(0x3000) {
-                            self.sim_regs.insert(0x2100, if frequency > 0 { 1 } else { 4 });
-                        }
-                    }
-                }
-            }
+            // A rejected register is unavailable in this snapshot. The next tick
+            // continues the sweep even on firmware that rejects this address.
+            let _ = self.read_registers_ex(reg_addr, 1);
         }
 
         Ok(self.telemetry_snapshot())
     }
 
     fn telemetry_snapshot(&self) -> DriveTelemetryDto {
-        let state_code = self.sim_regs.get(&0x2100).copied().unwrap_or(4);
-        let status_bits = self.sim_regs.get(&0x2101).copied().unwrap_or(0);
-        let fault_code = self.sim_regs.get(&0x2102).copied().unwrap_or(0);
-        let warning_code = self.sim_regs.get(&0x2103).copied().unwrap_or(0);
+        let state_code = self.sample(0x2100);
+        let status_bits = self.sample(0x2101);
+        let fault_code = self.sample(0x2102);
+        let warning_code = self.sample(0x2103);
         let output_freq_raw = self.sample(0x3000);
         let output_freq_hz = output_freq_raw.map(decode_output_frequency_hz);
         let target_freq_hz = self.sample(0x3001).map(|v| f64::from(v) / 100.0);
@@ -1005,6 +995,46 @@ mod telemetry_tests {
         assert_eq!(drive.sample(0x3002), Some(10));
         drive.measured.get_mut(&0x3002).unwrap().1 = Instant::now() - Duration::from_secs(6);
         assert_eq!(drive.sample(0x3002), None);
+    }
+
+    #[test]
+    fn physical_direction_and_fault_require_current_session_replies() {
+        let mut drive = DriveSession::default();
+        drive.simulated = false;
+        drive.accept_reading(0x3000, 1, &response(&[1, 3, 2, 0xEC, 0x78])).unwrap();
+        let first = drive.telemetry_snapshot();
+        assert_eq!(first.output_freq_hz, Some(-50.0));
+        assert_eq!((first.state_code, first.status_bits, first.fault_code), (None, None, None));
+        for reg in [0x2100, 0x2101, 0x2102] {
+            assert_eq!(TELEMETRY_SINGLE_REG_POLL_ORDER.iter().filter(|&&r| r == reg).count(), 1);
+        }
+        drive.accept_reading(0x2101, 1, &response(&[1, 3, 2, 0, 2])).unwrap();
+        drive.accept_reading(0x2100, 1, &response(&[1, 3, 2, 0, 6])).unwrap();
+        drive.accept_reading(0x2102, 1, &response(&[1, 3, 2, 0, 14])).unwrap();
+        let alarm = drive.telemetry_snapshot();
+        assert_eq!((alarm.status_bits, alarm.fault_code), (Some(2), Some(14)));
+        drive.accept_reading(0x2100, 1, &response(&[1, 3, 2, 0, 4])).unwrap();
+        assert_eq!(drive.telemetry_snapshot().fault_code, None);
+        drive.accept_reading(0x2102, 1, &response(&[1, 3, 2, 0, 0])).unwrap();
+        assert_eq!(drive.telemetry_snapshot().fault_code, Some(0));
+        drive.reset_measurements();
+        let next = drive.telemetry_snapshot();
+        assert_eq!((next.state_code, next.status_bits, next.fault_code), (None, None, None));
+        assert_eq!(next.warning_code, None);
+    }
+
+    #[test]
+    fn missing_direction_preserves_frequency_and_expired_fault_is_unknown() {
+        let mut drive = DriveSession::default();
+        drive.simulated = false;
+        drive.accept_reading(0x3000, 1, &response(&[1, 3, 2, 0, 100])).unwrap();
+        drive.accept_reading(0x2101, 2, &response(&[1, 3, 4, 0, 0, 0, 14])).unwrap();
+        assert_eq!(drive.telemetry_snapshot().status_bits, Some(0));
+        assert!(drive.accept_reading(0x2101, 1, &response(&[1, 0x83, 2])).is_err());
+        assert_eq!(drive.telemetry_snapshot().status_bits, None);
+        assert_eq!(drive.telemetry_snapshot().output_freq_hz, Some(1.0));
+        drive.measured.get_mut(&0x2102).unwrap().1 = Instant::now() - Duration::from_secs(6);
+        assert_eq!(drive.telemetry_snapshot().fault_code, None);
     }
 
     #[test]
