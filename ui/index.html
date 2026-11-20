@@ -675,7 +675,7 @@
                 Основной вход сигнала обратной связи ПИД-регулятора или аналогового задания частоты. Входное сопротивление: 20 кОм в режиме напряжения (U), 250 Ом в режиме токовой петли (I).
               </p>
               <div id="pinParamsBox" class="text-xs mono pro-text-primary pt-1">
-                Связанные параметры: F07.20..F07.24 (кривая AI1), F01.01=2 (частота от AI1), F13.02=0 (ОС ПИД от AI1)
+                Связанные параметры: F06.00..F06.07 (кривая AI1), F01.01=2 (частота от AI1), F13.02=0 (ОС ПИД от AI1)
               </div>
             </div>
           </div>
@@ -749,8 +749,8 @@
                 <span class="text-[11px] pro-text-muted mono">Гл. 3 Руководства</span>
               </div>
               <div class="grid grid-cols-2 gap-1.5 text-xs">
-                <button type="button" data-wiring="2wire" class="wiring-macro-btn pro-btn-primary py-1.5 px-2.5 text-left cursor-pointer">1. 2-проводная схема (F07.15=0)</button>
-                <button type="button" data-wiring="3wire" class="wiring-macro-btn pro-btn-outline py-1.5 px-2.5 text-left font-semibold cursor-pointer">2. 3-проводная схема (F07.15=2)</button>
+                <button type="button" data-wiring="2wire" class="wiring-macro-btn pro-btn-primary py-1.5 px-2.5 text-left cursor-pointer">1. 2-проводная схема (F04.15=0)</button>
+                <button type="button" data-wiring="3wire" class="wiring-macro-btn pro-btn-outline py-1.5 px-2.5 text-left font-semibold cursor-pointer">2. 3-проводная схема (F04.15=2)</button>
                 <button type="button" data-wiring="pid420" class="wiring-macro-btn pro-btn-outline py-1.5 px-2.5 text-left font-semibold cursor-pointer">3. Датчик 4..20 мА (ПИД ХВС)</button>
                 <button type="button" data-wiring="cascade" class="wiring-macro-btn pro-btn-outline py-1.5 px-2.5 text-left font-semibold cursor-pointer">4. Каскад насосов H00 (IO05)</button>
               </div>
@@ -793,19 +793,19 @@
               </div>
               <div>
                 <label class="block pro-text-muted mb-1">Уставка давления (бар)</label>
-                <input id="pidTargetBar" type="number" min="0.5" max="25" step="0.2" value="4.0" class="pro-input w-full px-2.5 py-1.5 mono" />
+                <input id="pidTargetBar" type="number" min="0" max="25" step="0.1" value="4.0" class="pro-input w-full px-2.5 py-1.5 mono" />
               </div>
               <div>
-                <label class="block pro-text-muted mb-1">Усиление Kp1 (F13.07)</label>
-                <input id="pidKpInput" type="number" min="0.1" max="20" step="0.1" value="1.8" class="pro-input w-full px-2.5 py-1.5 mono" />
+                <label class="block pro-text-muted mb-1">Усиление Kp1 (F13.08)</label>
+                <input id="pidKpInput" type="number" min="0" max="100" step="0.1" value="1.8" class="pro-input w-full px-2.5 py-1.5 mono" />
               </div>
               <div>
-                <label class="block pro-text-muted mb-1">Интегрир. Ti1, с (F13.08)</label>
-                <input id="pidTiInput" type="number" min="0.05" max="30" step="0.1" value="1.5" class="pro-input w-full px-2.5 py-1.5 mono" />
+                <label class="block pro-text-muted mb-1">Интегрир. Ti1, с (F13.09)</label>
+                <input id="pidTiInput" type="number" min="0.01" max="10" step="0.01" value="1.5" class="pro-input w-full px-2.5 py-1.5 mono" />
               </div>
               <div>
-                <label class="block pro-text-muted mb-1">Порог обрыва ОС, % (F13.21)</label>
-                <input id="pidLossInput" type="number" min="0" max="50" step="1" value="15" class="pro-input w-full px-2.5 py-1.5 mono" />
+                <label class="block pro-text-muted mb-1">Порог потери ОС, % (F13.24)</label>
+                <input id="pidLossInput" type="number" min="0" max="100" step="0.1" value="15" class="pro-input w-full px-2.5 py-1.5 mono" />
               </div>
             </div>
 
@@ -821,8 +821,9 @@
               </div>
             </div>
 
+            <div id="pidPreviewBox" class="pro-deep p-3 text-xs mono whitespace-pre-wrap"></div>
             <button id="btnApplyPidWizard" type="button" class="pro-btn-primary w-full py-2.5 px-4 text-xs cursor-pointer">
-              Применить расчетные параметры ПИД (F01.01, F13.00..F13.22) в профиль проекта
+              Применить параметры ПИД в профиль проекта
             </button>
           </div>
 
@@ -837,18 +838,15 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
               <div>
-                <label class="block pro-text-muted mb-1">Режим группы насосов (H00.00 / 0x4000)</label>
-                <select id="h00ModeSelect" class="pro-input w-full px-2.5 py-1.5">
-                  <option value="0">0 — Каскад отключен (Одиночный насос)</option>
-                  <option value="1">1 — Постоянный мастер (1 на ПЧ + доп. от сети)</option>
-                  <option value="2" selected>2 — Переменный мастер (Ротация по времени)</option>
-                  <option value="3">3 — Мульти-переменный режим</option>
-                  <option value="4">4 — Мульти-мастер по RS-485</option>
-                </select>
+                <label><input id="h00Enabled" type="checkbox" checked /> Включить каскад (H00.00)</label>
+                <label for="h00ModeSelect" class="block pro-text-muted mb-1">Режим насосов (H00.01)</label>
+                <select id="h00ModeSelect" class="pro-input w-full px-2.5 py-1.5"></select>
+                <label for="h00RotationPolicy" class="block pro-text-muted mt-2 mb-1">Чередование (H00.12)</label>
+                <select id="h00RotationPolicy" class="pro-input w-full px-2.5 py-1.5"></select>
               </div>
               <div>
                 <label class="block pro-text-muted mb-1">Период ротации насосов, мин (H00.13 / 0x400D)</label>
-                <input id="h00RotationMin" type="number" min="0" max="60000" step="60" value="240" class="pro-input w-full px-2.5 py-1.5 mono" />
+                <input id="h00RotationMin" type="number" min="0" max="60000" step="1" value="240" class="pro-input w-full px-2.5 py-1.5 mono" />
               </div>
             </div>
 
@@ -857,10 +855,14 @@
                 <input id="chkPipeFill" type="checkbox" checked class="mt-0.5" style="accent-color: var(--primary);" />
                 <div>
                   <div class="font-bold">Плавное заполнение трубы (H00.23..25)</div>
-                  <div class="text-[11px] pro-text-muted mt-0.5">Мягкая подача воды в пустую магистраль (30.0 Гц / 60 с) до старта ПИД</div>
+                  <div class="text-[11px] pro-text-muted mt-0.5">Скорость нарастания задания и конечный уровень заполнения</div>
                 </div>
               </label>
 
+              <div class="pro-deep p-3 space-y-2">
+                <label>H00.24 · Скорость, %/с <input id="fillRate" class="pro-input w-full" type="number" min="0" max="100" step="0.1" value="1.0" /></label>
+                <label>H00.25 · Задание, % <input id="fillTarget" class="pro-input w-full" type="number" min="0" max="100" step="0.1" value="25.0" /></label>
+              </div>
               <label class="pro-deep p-3 flex items-start gap-2.5 cursor-pointer">
                 <input id="chkDryRun" type="checkbox" checked class="mt-0.5" style="accent-color: var(--primary);" />
                 <div>
@@ -872,24 +874,21 @@
               <label class="pro-deep p-3 flex items-start gap-2.5 cursor-pointer">
                 <input id="chkDeragging" type="checkbox" class="mt-0.5" style="accent-color: var(--primary);" />
                 <div>
-                  <div class="font-bold">Функция самоочистки КНС (H00.15..22)</div>
+                  <div class="font-bold">Очистка при пуске (H00.15)</div>
                   <div class="text-[11px] pro-text-muted mt-0.5">Реверсивный цикл сброса волокнистых загрязнений с рабочего колеса</div>
                 </div>
               </label>
 
-              <label class="pro-deep p-3 flex items-start gap-2.5 cursor-pointer">
-                <input id="chkFireMode" type="checkbox" class="mt-0.5" style="accent-color: var(--danger);" />
-                <div>
-                  <div class="font-bold" style="color: var(--danger);">Пожарный режим (H00.42..47, A650M)</div>
-                  <div class="text-[11px] pro-text-muted mt-0.5">Приоритетная работа на частоте 50.0 Гц с игнорированием некритичных аварий</div>
-                </div>
+              <label class="pro-deep p-3">
+                Функция пожаротушения (H00.42)
+                <select id="h00FireMode" class="pro-input mt-1 w-full"></select>
               </label>
             </div>
 
-            <div id="h00PreviewBox" class="pro-deep p-3 text-xs mono space-y-1"></div>
+            <div id="h00PreviewBox" class="pro-deep p-3 text-xs mono whitespace-pre-wrap"></div>
 
             <button id="btnApplyH00Wizard" type="button" class="pro-btn-primary w-full py-2.5 px-4 text-xs cursor-pointer">
-              Применить настройки каскада и защит H00 (0x4000..0x402F) в профиль проекта
+              Применить параметры каскада в профиль проекта
             </button>
           </div>
         </div>
@@ -993,18 +992,18 @@
         <div class="accordion active">
           <div class="accordion-header">🚰 1. Режимы работы группы насосов и каскадное управление (Группа H00: 0x4000..0x402F) <span>▼</span></div>
           <div class="accordion-content space-y-2">
-            <p><b>H00.00 = 1 (Постоянный мастер):</b> один насос жестко подключен к выходу ПЧ и плавно регулирует давление, а вспомогательные насосы подключаются напрямую к сети контакторами (через реле R1/R2 и плату расширения <span class="mono">EC-A650M-IO05</span>).</p>
-            <p><b>H00.00 = 2 (Переменный мастер с ротацией):</b> ПЧ по очереди берет на себя управление каждым насосом для выравнивания моточасов и износа. Время чередования задается в <b>H00.13</b> (по умолчанию 240 мин) или <b>H00.09</b> (в часах).</p>
-            <p><b>Битовая маска насосов (H00.11):</b> определяет, какие насосы участвуют в каскаде (<span class="mono">1</span> — в работе, <span class="mono">0</span> — выведен в резерв/ремонт, отсчет справа налево, например <span class="mono">00011</span> — активны насосы №1 и №2).</p>
+            <p><b>H00.00 = 1, H00.01 = 0 (Постоянный мастер):</b> один насос жестко подключен к выходу ПЧ и плавно регулирует давление, а вспомогательные насосы подключаются напрямую к сети контакторами (через реле R1/R2 и плату расширения <span class="mono">EC-A650M-IO05</span>).</p>
+            <p><b>H00.00 = 1, H00.01 = 1 (Переменный мастер):</b> ПЧ по очереди берет на себя управление каждым насосом для выравнивания моточасов и износа. При выборе H00.12 = 2 интервал чередования в минутах задаёт H00.13.</p>
+            <p>Состояние насосов отображается в H00.11. Номеру насоса соответствует позиция в записи статуса.</p>
           </div>
         </div>
 
         <div class="accordion">
           <div class="accordion-header">🌙 2. Спящий режим и пробуждение в контуре ПИД (Энергосбережение при нулевом водоразборе) <span>▼</span></div>
           <div class="accordion-content space-y-2">
-            <p>Позволяет ПЧ останавливать насос при закрытых кранах в магистрали и автоматически пробуждать его при падении давления (в <b>A650M ред. 3</b> параметры находятся в группе <b>F13</b>):</p>
+            <p>Позволяет ПЧ останавливать насос при закрытых кранах в магистрали и автоматически пробуждать его при падении давления (в <b>A650M ред. 3</b> параметры сна и пробуждения находятся в группе <b>F14</b>):</p>
             <ul class="list-disc pl-5 space-y-1">
-              <li><b>Частота сна и задержка сна (F13.23..F13.26):</b> если выходная частота опускается ниже порога сна (например, <span class="mono">25.00 Гц</span>) и держится дольше времени задержки сна (<span class="mono">30..60 с</span>), ПЧ переходит в режим ожидания.</li>
+              <li><b>Частота покоя и задержка (F14.12, F14.13):</b> если выходная частота опускается ниже порога сна (например, <span class="mono">25.00 Гц</span>) и держится дольше времени задержки сна (<span class="mono">30..60 с</span>), ПЧ переходит в режим ожидания.</li>
               <li><b>Порог пробуждения по давлению:</b> когда обратная связь от датчика давления падает ниже порога пробуждения в течение времени задержки, ПЧ автоматически запускает насос.</li>
             </ul>
           </div>
@@ -1015,9 +1014,9 @@
           <div class="accordion-content space-y-2">
             <p>Для активации замкнутого контура ПИД установите основной источник частоты <b>F01.01 = 6</b> (ПИД-регулятор):</p>
             <ul class="list-disc pl-5 space-y-1">
-              <li><b>F13.00 / F12.00 (Источник задания ПИД):</b> <span class="mono">0</span> — цифровая уставка <b>F13.01 / F12.01</b> (в % от шкалы датчика).</li>
-              <li><b>F13.02 / F12.02 (Канал обратной связи):</b> <span class="mono">0</span> — вход <b>AI1</b> (не забудьте переключить аппаратный джампер <span class="mono">AI1</span> на плате в положение <span class="mono">I</span> для датчика 4..20 мА и задать минимальный вход <b>F07.20 = 2.00 В</b> [20%]).</li>
-              <li><b>Коэффициенты Kp1 и Ti1 (F13.07 и F13.08):</b> заводское значение времени интегрирования <span class="mono">0.10 с</span> слишком мало для водяных насосов и вызывает раскачку давления! Начинайте наладку с <b>Kp1 = 1.5..2.0</b> и <b>Ti1 = 1.5..2.5 с</b>.</li>
+              <li><b>F13.00 (Источник задания ПИД):</b> <span class="mono">0</span> — цифровая уставка <b>F13.01</b> (в % от шкалы датчика).</li>
+              <li><b>F13.02 (Канал обратной связи):</b> <span class="mono">0</span> — вход <b>AI1</b> (не забудьте переключить аппаратный джампер <span class="mono">AI1</span> на плате в положение <span class="mono">I</span> для датчика 4..20 мА и задать минимальный вход <b>F06.00 = 20.0 %</b> [20%]).</li>
+              <li><b>Коэффициенты Kp1 и Ti1 (F13.08 и F13.09):</b> заводское значение времени интегрирования <span class="mono">0.10 с</span> слишком мало для водяных насосов и вызывает раскачку давления! Начинайте наладку с <b>Kp1 = 1.5..2.0</b> и <b>Ti1 = 1.5..2.5 с</b>.</li>
             </ul>
           </div>
         </div>
@@ -1026,7 +1025,7 @@
           <div class="accordion-header">🛡️ 4. Защита от «Сухого хода» и Плавное заполнение пустой трубы (H00.23..H00.28) <span>▼</span></div>
           <div class="accordion-content space-y-2">
             <ul class="list-disc pl-5 space-y-1">
-              <li><b>Плавное заполнение трубы (H00.23..H00.25):</b> при первом пуске в пустую магистраль ПИД-регулятор видит нулевое давление и мгновенно разгоняет насос до 50 Гц, вызывая гидроудар. Включение <b>H00.23..25</b> удерживает безопасную частоту (например, 30 Гц) до заполнения трубы.</li>
+              <li><b>Плавное заполнение трубы (H00.23..H00.25):</b> H00.23 включает функцию. H00.24 задаёт скорость нарастания в %/с, H00.25 — конечное задание в %.</li>
               <li><b>Определение сухого хода по току (H00.26..H00.28):</b> установите <b>H00.26 = 1</b>, порог тока <b>H00.27 = 35..45%</b> от номинала и задержку <b>H00.28 = 10.0 с</b>. При исчезновении воды на всасе ток двигателя падает, и ПЧ отключает насос с ошибкой.</li>
             </ul>
           </div>
@@ -1062,7 +1061,7 @@
 
   <dialog id="aboutDialog" class="about-dialog pro-card" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle" class="text-lg font-bold">О программе</h2>
-    <p class="mt-2 text-sm">ONI A650M PRO — конфигуратор для ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
+    <p class="mt-2 text-sm">ONI A650M PRO · 0.2.0-preview.4 · ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
     <p class="mt-2 text-sm">Выберите COM-порт для работы по RS-485 (Modbus RTU) или откройте симулятор. При запуске включён режим «Только чтение».</p>
     <div class="flex items-center justify-between gap-3 mt-4 text-sm">
       <a id="projectLink" href="https://github.com/uzbatsu-beep/oni-a650-pro" target="_blank" rel="noopener noreferrer">Проект и README на GitHub</a>
@@ -1070,6 +1069,7 @@
     </div>
   </dialog>
   <script src="scope-math.js"></script>
+  <script src="wizard-profile.js"></script>
   <script>
 
     // =========================================================================
@@ -1253,6 +1253,9 @@
       scopeHistory: [],
       auditLog: []
     };
+
+    const wizardCatalog = new Map(PARAM_CATALOG.map(p => [p.id, p]));
+    const explicitProfileCodes = new Set();
 
     PARAM_CATALOG.forEach(p => {
       state.paramSet[p.id] = p.def;
@@ -2201,16 +2204,10 @@
     });
 
     document.getElementById('btnLoadSampleOds').addEventListener('click', () => {
-      state.paramSet['F00.03'] = '1';
-      state.paramSet['F01.01'] = '6';
-      state.paramSet['F01.22'] = '12.0';
-      state.paramSet['F01.23'] = '15.0';
-      state.paramSet['F13.00'] = '0';
-      state.paramSet['F13.01'] = '40.0';
-      state.paramSet['F13.02'] = '0';
-      state.paramSet['H00.00'] = '2';
-      state.paramSet['H00.13'] = '360';
-      state.paramSet['H00.26'] = '1';
+      const settings = { 'F03.00': 12, 'F03.01': 15, 'F01.01': 6, 'F13.00': 0,
+        'F13.01': 40, 'F13.02': 0, 'H00.00': 1, 'H00.01': 1, 'H00.12': 2, 'H00.13': 360, 'H00.26': 1 };
+      const plan = WizardProfile.makePlan(settings, wizardCatalog);
+      WizardProfile.applyPlan(plan, state.paramSet, explicitProfileCodes);
       state.paramFilterMode = 'diff';
       document.querySelectorAll('.pfilter-btn').forEach(b => {
         b.className = b.getAttribute('data-pfilter') === 'diff'
@@ -2218,8 +2215,8 @@
           : 'pfilter-btn pro-btn-outline flex-1 py-2 px-2.5 text-xs font-semibold cursor-pointer';
       });
       renderParamTable();
-      appendAudit('import_ods_profile', { profile: 'pump_station_a650m.ods', modified_params: 10 });
-      showToast('Загружен демо-профиль насосной станции (.ods): отфильтрованы 10 измененных параметров', 'success');
+      appendAudit('import_ods_profile', { profile: 'pump_station_a650m.ods', profile_params: plan.length });
+      showToast('Загружен демо-профиль насосной станции (.ods): включён фильтр отличий от заводских значений', 'success');
     });
 
     function downloadTextFile(filename, content, mime = 'text/plain;charset=utf-8') {
@@ -2248,13 +2245,12 @@
         '',
         '[Parameter Set]'
       ];
-      PARAM_CATALOG.forEach(p => {
-        const val = state.paramSet[p.id];
-        if (val !== '----' && String(val) !== String(p.def)) {
-          const rawInt = Math.round((parseFloat(val) || 0) / (p.sc || 1));
-          lines.push(`${p.id} = ${rawInt}`);
-        }
-      });
+      try {
+        lines.push(...WizardProfile.profileRows(PARAM_CATALOG, state.paramSet, explicitProfileCodes));
+      } catch (err) {
+        showToast(err.message, 'error');
+        return;
+      }
       lines.push('', '[Parameter Read]', '', '[Check Parameter]');
       downloadTextFile(`ONI_${DRIVE_MODEL}_Profile.ods`, lines.join('\r\n'));
       appendAudit('export_ods', { model: DRIVE_MODEL });
@@ -2272,28 +2268,28 @@
 
     const TERMINAL_SPECS = {
       '+10V': { cat: 'Источник опорного напряжения (+10 В, 10 мА)', desc: 'Питание внешнего потенциометра задания частоты 1..5 кОм.', params: 'F01.01 = 2 (задание частоты от AI1)' },
-      'AI1':  { cat: 'Аналоговый вход 1 (0..10 В или 0/4..20 мА)', desc: 'Выбор режима напряжение/ток переключателем AI1 на плате. Основной вход датчика давления 4..20 мА для ПИД-регулятора.', params: 'F07.20..F07.24 (кривая AI1), F13.02=0 (ОС ПИД от AI1)' },
-      'AI2':  { cat: 'Аналоговый вход 2 (0..10 В или 0/4..20 мА)', desc: 'Второй аналоговый вход (переключатель AI2 V/I).', params: 'F07.25..F07.29 (кривая AI2), F13.02=1' },
-      'AI3':  { cat: 'Биполярный аналоговый вход 3 (-10..+10 В, только ≥3.7 кВт)', desc: 'Присутствует на моделях ≥ 3.7 кВт. В компактном габарите A650M 1.5–2.2 кВт клемма AI3 физически отсутствует.', params: 'F07.30..F07.34 (кривая AI3)' },
+      'AI1':  { cat: 'Аналоговый вход 1 (0..10 В или 0/4..20 мА)', desc: 'Выбор режима напряжение/ток переключателем AI1 на плате. Основной вход датчика давления 4..20 мА для ПИД-регулятора.', params: 'F06.00..F06.07 (кривая AI1), F13.02=0 (ОС ПИД от AI1)' },
+      'AI2':  { cat: 'Аналоговый вход 2 (0..10 В или 0/4..20 мА)', desc: 'Второй аналоговый вход (переключатель AI2 V/I).', params: 'F06.08..F06.15 (кривая AI2), F13.02=1' },
+      'AI3':  { cat: 'Биполярный аналоговый вход 3 (-10..+10 В, только ≥3.7 кВт)', desc: 'Присутствует на моделях ≥ 3.7 кВт. В компактном габарите A650M 1.5–2.2 кВт клемма AI3 физически отсутствует.', params: 'F06.16..F06.23 (кривая AI3)' },
       'GND':  { cat: 'Общий провод аналоговых сигналов и RS-485', desc: 'Изолированная аналоговая земля (не соединять с силовым PE).', params: 'Опорный потенциал для AI1, AI2, AO1, AO2' },
-      'AO1':  { cat: 'Аналоговый выход 1 (0..10 В или 0..20 мА)', desc: 'Программируемый выход индикации рабочей частоты, тока или момента. Режим V/I задается переключателем AO1.', params: 'F08.07 (функция AO1), регистр 0x2005 (управление по связи)' },
-      'AO2':  { cat: 'Аналоговый выход 2 (0..10 В или 0..20 мА)', desc: 'Второй аналоговый выход (переключатель AO2 V/I).', params: 'F08.08 (функция AO2), регистр 0x2006' },
+      'AO1':  { cat: 'Аналоговый выход 1 (0..10 В или 0..20 мА)', desc: 'Программируемый выход индикации рабочей частоты, тока или момента. Режим V/I задается переключателем AO1.', params: 'F07.00 (функция AO1), регистр 0x2005 (управление по связи)' },
+      'AO2':  { cat: 'Аналоговый выход 2 (0..10 В или 0..20 мА)', desc: 'Второй аналоговый выход (переключатель AO2 V/I).', params: 'F07.01 (функция AO2), регистр 0x2006' },
       '+24V': { cat: 'Внутренний источник питания +24 В DC (макс. 200 мА)', desc: 'Питание дискретных входов DI и внешних двухпроводных датчиков давления.', params: 'Защита от КЗ (при перегрузке возникает Err08)' },
       'PLC':  { cat: 'Общая клемма полярности дискретных входов (NPN / PNP)', desc: 'По умолчанию соединена перемычкой с COM (схема NPN / Sink). Для схемы PNP (Source) переставьте перемычку между PLC и +24V.', params: 'ONI_A650M_Manual.pdf рис. 3-10..3-13 (стр. 25)' },
       'COM':  { cat: 'Общий провод источника +24 В и открытых коллекторов Y1/Y2', desc: 'Общий потенциал цепей дискретного управления 24 В.', params: 'Опорная шина для DI1..DI7 и выходов Y1, Y2/HO' },
-      'DI1':  { cat: 'Дискретный вход 1 (По умолч.: Вращение ВПЕРЕД / FWD)', desc: 'Оптоизолированный вход 24 В DC.', params: 'F07.00 = 1 (Пуск вперед), мониторинг в U00.14' },
-      'DI2':  { cat: 'Дискретный вход 2 (По умолч.: Вращение НАЗАД / REV)', desc: 'В 3-проводной схеме может назначаться как вход направления или останова.', params: 'F07.01 = 2 (Пуск назад), F07.15 (режим 2/3-пров.)' },
-      'DI3':  { cat: 'Дискретный вход 3 (Многофункциональный вход)', desc: 'Назначается на толчковый режим (Jog), трехпроводный стоп или выбор многоступенчатой скорости.', params: 'F07.02 (функция клеммы DI3)' },
-      'DI4':  { cat: 'Дискретный вход 4 (Многофункциональный вход)', desc: 'По умолчанию: сброс аварии (Fault Reset) или многоступенчатая скорость.', params: 'F07.03 (функция клеммы DI4)' },
-      'DI5':  { cat: 'Дискретный вход 5 (Только в моделях ≥ 3.7 кВт)', desc: 'В компактных моделях A650M 1.5–2.2 кВт клемма DI5 отсутствует на плате.', params: 'F07.04 (функция клеммы DI5)' },
-      'DI6':  { cat: 'Дискретный вход 6 (Только в моделях ≥ 3.7 кВт)', desc: 'В компактных моделях A650M 1.5–2.2 кВт клемма DI6 отсутствует на плате.', params: 'F07.05 (функция клеммы DI6)' },
-      'DI7/HI': { cat: 'Высокоскоростной импульсный вход DI7 / HI (до 100 кГц)', desc: 'Принимает импульсное задание частоты до 100.0 кГц либо работает как обычный дискретный вход DI7.', params: 'F07.06 = 30 (импульсный вход HI), F07.35..F07.39' },
-      'Y1':   { cat: 'Транзисторный выход 1 (Открытый коллектор =24В / 50мА)', desc: 'Отсутствует в габарите A650M 1.5–2.2 кВт. На моделях ≥ 3.7 кВт сигнализирует состояние «В работе».', params: 'F08.00 (функция выхода Y1)' },
-      'Y2/HO': { cat: 'Гибридный выход: Открытый коллектор Y2 или Импульсный HO (до 100 кГц)', desc: 'Переключается между дискретным выходом Y2 и частотно-импульсным выходом HO (0.01..100.0 кГц).', params: 'F08.01 (функция Y2), F08.06 (режим Y2/HO)' },
+      'DI1':  { cat: 'Дискретный вход 1 (По умолч.: Вращение ВПЕРЕД / FWD)', desc: 'Оптоизолированный вход 24 В DC.', assignment: 'F04.00', params: 'F04.15 (режим управления), U00.12 (состояние входа)' },
+      'DI2':  { cat: 'Дискретный вход 2 (По умолч.: Вращение НАЗАД / REV)', desc: 'В 3-проводной схеме может назначаться как вход направления или останова.', assignment: 'F04.01', params: 'F04.15 (режим управления), U00.12 (состояние входа)' },
+      'DI3':  { cat: 'Дискретный вход 3 (Многофункциональный вход)', desc: 'Назначается на толчковый режим (Jog), трехпроводный стоп или выбор многоступенчатой скорости.', assignment: 'F04.02', params: 'F04.15 (режим управления), U00.12 (состояние входа)' },
+      'DI4':  { cat: 'Дискретный вход 4 (Многофункциональный вход)', desc: 'Назначение выбирается в профиле клеммы DI4.', assignment: 'F04.03', params: 'F04.15 (режим управления), U00.12 (состояние входа)' },
+      'DI5':  { cat: 'Дискретный вход 5 (Только в моделях ≥ 3.7 кВт)', desc: 'В компактных моделях A650M 1.5–2.2 кВт клемма DI5 отсутствует на плате.', assignment: 'F04.04', params: 'F04.15 (режим управления), U00.12 (состояние входа)' },
+      'DI6':  { cat: 'Дискретный вход 6 (Только в моделях ≥ 3.7 кВт)', desc: 'В компактных моделях A650M 1.5–2.2 кВт клемма DI6 отсутствует на плате.', assignment: 'F04.05', params: 'F04.15 (режим управления), U00.13 (состояние входа)' },
+      'DI7/HI': { cat: 'Высокоскоростной импульсный вход DI7 / HI (до 100 кГц)', desc: 'Принимает импульсное задание частоты до 100.0 кГц либо работает как обычный дискретный вход DI7.', assignment: 'F04.06', params: 'F04.15 (режим управления), U00.13 (состояние входа)' },
+      'Y1':   { cat: 'Транзисторный выход 1 (Открытый коллектор =24В / 50мА)', desc: 'Отсутствует в габарите A650M 1.5–2.2 кВт. На моделях ≥ 3.7 кВт сигнализирует состояние «В работе».', params: 'F05.00 (функция выхода Y1)' },
+      'Y2/HO': { cat: 'Гибридный выход: Открытый коллектор Y2 или Импульсный HO (до 100 кГц)', desc: 'Переключается между дискретным выходом Y2 и частотно-импульсным выходом HO (0.01..100.0 кГц).', params: 'F05.01 (функция Y2), F07.02 (функция HO)' },
       '485+': { cat: 'Дифференциальная линия A (+) интерфейса RS-485 (Modbus RTU)', desc: 'Встроенный приемопередатчик RS-485 с переключателем терминального резистора 120 Ом.', params: 'F15.00 (бод), F15.01 (формат), F15.02 (адрес)' },
       '485-': { cat: 'Дифференциальная линия B (-) интерфейса RS-485 (Modbus RTU)', desc: 'Подключать экранированной витой парой к клемме B(-) адаптера USB-RS485.', params: 'F15.00..F15.08 (группа связи Modbus)' },
-      'R1A/B/C': { cat: 'Релейный выход 1 (Перекидной контакт НО/НЗ, ~250В/3А)', desc: 'По умолчанию сигнализирует аварию ПЧ (Fault Output).', params: 'F08.02 (функция реле R1), задержка F08.17' },
-      'R2A/B/C': { cat: 'Релейный выход 2 (Перекидной контакт НО/НЗ, ~250В/3А)', desc: 'В режиме каскада насосов H00 управляет контактором дополнительного насоса.', params: 'F08.03 (функция реле R2), группа H00' }
+      'R1A/B/C': { cat: 'Релейный выход 1 (Перекидной контакт НО/НЗ, ~250В/3А)', desc: 'По умолчанию сигнализирует аварию ПЧ (Fault Output).', params: 'F05.02 (функция реле R1), задержка F05.06' },
+      'R2A/B/C': { cat: 'Релейный выход 2 (Перекидной контакт НО/НЗ, ~250В/3А)', desc: 'В режиме каскада насосов H00 управляет контактором дополнительного насоса.', params: 'F05.03 (функция реле R2), группа H00' }
     };
 
     function renderTerminalSvg() {
@@ -2345,7 +2341,7 @@
         });
       });
       const currentPin = document.getElementById('pinBadge').textContent;
-      if (!row1.includes(currentPin) && !row2.includes(currentPin)) showTerminalPin('AI1');
+      showTerminalPin(row1.includes(currentPin) || row2.includes(currentPin) ? currentPin : 'AI1');
     }
 
     function showTerminalPin(pin) {
@@ -2354,7 +2350,14 @@
       document.getElementById('pinBadge').textContent = pin;
       document.getElementById('pinCategory').textContent = spec.cat;
       document.getElementById('pinDescription').textContent = spec.desc;
-      document.getElementById('pinParamsBox').textContent = `Связанные параметры: ${spec.params}`;
+      let details = spec.params;
+      if (spec.assignment) {
+        const parameter = wizardCatalog.get(spec.assignment);
+        const value = state.paramSet[parameter.id];
+        const label = enumChoices(parameter).find(option => option.code === value)?.label || 'код вне справочника';
+        details = `${parameter.id} = ${value} — ${label} (профиль). ${details}`;
+      }
+      document.getElementById('pinParamsBox').textContent = details;
     }
 
     document.querySelectorAll('.dip-toggle-btn').forEach(btn => {
@@ -2391,12 +2394,12 @@
           <rect x="130" y="42" width="46" height="20" rx="4" fill="#f36c21"/><text x="153" y="56" text-anchor="middle" fill="#fff" font-size="10" font-family="JetBrains Mono">SA1</text>
           <rect x="130" y="70" width="46" height="20" rx="4" fill="#0284c7"/><text x="153" y="84" text-anchor="middle" fill="#fff" font-size="10" font-family="JetBrains Mono">SA2</text>
         </svg>`;
-        hint.textContent = '2-проводный режим 1: F02.00 = 1 (Клеммы), F07.15 = 0, F07.00 (DI1) = 1 (Вперед), F07.01 (DI2) = 2 (Назад).';
+        hint.textContent = '2-проводный режим 1: F02.00 = 1 (Клеммы), F04.15 = 0, F04.00 (DI1) = 1 (Вперед), F04.01 (DI2) = 2 (Назад).';
       } else if (mode === '3wire') {
         box.innerHTML = `<svg viewBox="0 0 460 140" class="w-full h-auto">
           <rect x="270" y="8" width="175" height="124" rx="8" fill="#18181b" stroke="#f36c21" stroke-width="2"/>
-          <text x="285" y="38" fill="#4caf50" font-size="11" font-family="JetBrains Mono">DI1 (Кнопка ПУСК НО)</text>
-          <text x="285" y="66" fill="#ffa726" font-size="11" font-family="JetBrains Mono">DI2 (Реверс F/R)</text>
+          <text x="285" y="38" fill="#4caf50" font-size="11" font-family="JetBrains Mono">DI1 (Вперёд НО)</text>
+          <text x="285" y="66" fill="#ffa726" font-size="11" font-family="JetBrains Mono">DI2 (Назад НО)</text>
           <text x="285" y="94" fill="#ef5350" font-size="11" font-family="JetBrains Mono">DI3 (Кнопка СТОП НЗ)</text>
           <text x="285" y="120" fill="#94a3b8" font-size="11" font-family="JetBrains Mono">COM (Общий 0В)</text>
           <line x1="50" y1="34" x2="270" y2="34" stroke="#4caf50" stroke-width="2"/>
@@ -2404,10 +2407,11 @@
           <line x1="50" y1="90" x2="270" y2="90" stroke="#ef5350" stroke-width="2"/>
           <line x1="50" y1="116" x2="270" y2="116" stroke="#64748b" stroke-width="2"/>
           <line x1="50" y1="34" x2="50" y2="116" stroke="#64748b" stroke-width="2"/>
-          <rect x="120" y="24" width="54" height="18" rx="4" fill="#2e7d32"/><text x="147" y="37" text-anchor="middle" fill="#fff" font-size="9" font-family="JetBrains Mono">SB2 НО</text>
-          <rect x="120" y="80" width="54" height="18" rx="4" fill="#c62828"/><text x="147" y="93" text-anchor="middle" fill="#fff" font-size="9" font-family="JetBrains Mono">SB1 НЗ</text>
+          <rect x="120" y="24" width="54" height="18" rx="4" fill="#2e7d32"/><text x="147" y="37" text-anchor="middle" fill="#fff" font-size="9" font-family="JetBrains Mono">SB1 НО</text>
+          <rect x="120" y="52" width="54" height="18" rx="4" fill="#a16207"/><text x="147" y="65" text-anchor="middle" fill="#fff" font-size="9">SB2 НО</text>
+          <rect x="120" y="80" width="54" height="18" rx="4" fill="#c62828"/><text x="147" y="93" text-anchor="middle" fill="#fff" font-size="9" font-family="JetBrains Mono">SB3 НЗ</text>
         </svg>`;
-        hint.textContent = '3-проводный режим 1: F02.00 = 1, F07.15 = 2, F07.00 (DI1) = 1 (Пуск НО), F07.02 (DI3) = 3 (Трехпроводный стоп НЗ).';
+        hint.textContent = '3-проводный режим 1: F02.00 = 1, F04.15 = 2, F04.00 (DI1) = 1 (Вперёд), F04.01 (DI2) = 2 (Назад), F04.02 (DI3) = 3 (Трехпроводный стоп НЗ).';
       } else if (mode === 'pid420') {
         box.innerHTML = `<svg viewBox="0 0 460 140" class="w-full h-auto">
           <rect x="270" y="12" width="175" height="116" rx="8" fill="#18181b" stroke="#f36c21" stroke-width="2"/>
@@ -2420,20 +2424,20 @@
           <line x1="125" y1="48" x2="270" y2="42" stroke="#ffa726" stroke-width="2"/>
           <line x1="125" y1="78" x2="270" y2="78" stroke="#38bdf8" stroke-width="2"/>
         </svg>`;
-        hint.textContent = 'Датчик 4..20 мА: переключатель AI1 в положение «I», соединить COM и GND, задать F07.20 = 2.00 В (4 мА = 0%), F01.01 = 6, F13.02 = 0.';
+        hint.textContent = 'Датчик 4..20 мА: переключатель AI1 в положение «I», соединить COM и GND, задать F06.00 = 20.0 % (4 мА = 0%), F01.01 = 6, F13.02 = 0.';
       } else {
         box.innerHTML = `<svg viewBox="0 0 460 140" class="w-full h-auto">
           <rect x="20" y="14" width="175" height="112" rx="8" fill="#18181b" stroke="#f36c21" stroke-width="2"/>
           <text x="107" y="36" text-anchor="middle" fill="#f36c21" font-size="11" font-weight="700">ПЧ A650M + IO05</text>
           <text x="32" y="62" fill="#e2e8f0" font-size="10" font-family="JetBrains Mono">R1/R2: Насосы 1..2</text>
           <text x="32" y="86" fill="#e2e8f0" font-size="10" font-family="JetBrains Mono">R3..R8 (IO05): Насосы 3..6</text>
-          <text x="32" y="108" fill="#4caf50" font-size="10" font-family="JetBrains Mono">H00.00 = 2 (Ротация)</text>
+          <text x="32" y="108" fill="#4caf50" font-size="10" font-family="JetBrains Mono">H00.01 = 1</text>
           <rect x="255" y="22" width="180" height="40" rx="6" fill="#1e293b" stroke="#4caf50"/><text x="345" y="46" text-anchor="middle" fill="#4caf50" font-size="11" font-family="JetBrains Mono">KM1/KM2: Насос 1 (ПЧ/Сеть)</text>
           <rect x="255" y="76" width="180" height="40" rx="6" fill="#1e293b" stroke="#38bdf8"/><text x="345" y="100" text-anchor="middle" fill="#38bdf8" font-size="11" font-family="JetBrains Mono">KM3/KM4: Насос 2 (ПЧ/Сеть)</text>
           <line x1="195" y1="60" x2="255" y2="42" stroke="#4caf50" stroke-width="2"/>
           <line x1="195" y1="86" x2="255" y2="96" stroke="#38bdf8" stroke-width="2"/>
         </svg>`;
-        hint.textContent = 'Каскад с переменным мастером (H00.00 = 2): плата EC-A650M-IO05 переключает контакторы насосов между выходом ПЧ и сетью с выравниванием моточасов (H00.13).';
+        hint.textContent = 'Каскад с переменным мастером (H00.00 = 1, H00.01 = 1): плата EC-A650M-IO05 переключает контакторы насосов между выходом ПЧ и сетью с выравниванием моточасов (H00.13).';
       }
     }
 
@@ -2448,30 +2452,25 @@
     });
 
     function updatePidWizard() {
-      const rangeBar = parseFloat(document.getElementById('pidSensorRange').value) || 10;
-      const targetBar = parseFloat(document.getElementById('pidTargetBar').value) || 4;
-      const kp = parseFloat(document.getElementById('pidKpInput').value) || 1.8;
-      const ti = parseFloat(document.getElementById('pidTiInput').value) || 1.5;
-      const lossPct = parseFloat(document.getElementById('pidLossInput').value) || 15;
-
-      const pct = Math.max(0, Math.min(100, (targetBar / rangeBar) * 100));
-      document.getElementById('pidCalcSummary').textContent =
-        `F13.01 = ${pct.toFixed(1)}% (${targetBar.toFixed(1)} из ${rangeBar} бар)`;
-
+      const rangeBar = Number(document.getElementById('pidSensorRange').value);
+      const targetBar = document.getElementById('pidTargetBar').valueAsNumber;
+      const kp = document.getElementById('pidKpInput').valueAsNumber;
+      const ti = document.getElementById('pidTiInput').valueAsNumber;
+      const loss = document.getElementById('pidLossInput').valueAsNumber;
+      const plan = previewSettings('pidPreviewBox', 'btnApplyPidWizard', () =>
+        WizardProfile.pidSettings({ range: rangeBar, target: targetBar, kp, ti, loss }));
+      const summary = document.getElementById('pidCalcSummary');
       const alertBox = document.getElementById('pidCoachAlert');
-      if (ti < 0.35) {
-        alertBox.style.borderColor = 'var(--danger)';
-        alertBox.style.background = 'rgba(211, 47, 47, 0.12)';
-        alertBox.innerHTML = `<strong>⚠️ Инженерное предупреждение:</strong> время интегрирования <span class="mono">Ti1 = ${ti.toFixed(2)} с</span> слишком мало (заводской дефолт 0.10 с вызывает автоколебания и гидроудары!). Рекомендуется <span class="mono">1.00 .. 2.50 с</span>.`;
-      } else if (lossPct === 0) {
-        alertBox.style.borderColor = 'var(--warning)';
-        alertBox.style.background = 'rgba(245, 124, 0, 0.12)';
-        alertBox.innerHTML = `<strong>⚠️ Внимание:</strong> защита от обрыва датчика 4..20 мА отключена (0%). Задайте порог 15–20% для срабатывания аварии <span class="mono">Err19</span> при обрыве линии.`;
-      } else {
-        alertBox.style.borderColor = 'var(--success)';
-        alertBox.style.background = 'rgba(46, 125, 50, 0.12)';
-        alertBox.innerHTML = `<strong>✅ Контур устойчив:</strong> при <span class="mono">Kp1=${kp.toFixed(1)}</span> и <span class="mono">Ti1=${ti.toFixed(2)} с</span> давление выходит на уставку без раскачки. Защита от обрыва петли активна (<span class="mono">Err19</span> при ОС &lt; ${lossPct}%).`;
+      if (!plan) {
+        summary.textContent = '';
+        alertBox.textContent = '';
+        const canvas = document.getElementById('pidSimCanvas');
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        return;
       }
+      const pct = Number(plan.find(row => row.id === 'F13.01').value);
+      summary.textContent = `F13.01 = ${pct}% (${targetBar} из ${rangeBar} бар)`;
+      alertBox.textContent = `Расчётная модель. Kp = ${kp}, Ti = ${ti} с. Порог потери обратной связи = ${loss}%.`;
 
       const canvas = document.getElementById('pidSimCanvas');
       if (!canvas) return;
@@ -2527,53 +2526,69 @@
       });
     });
 
-    document.getElementById('btnApplyPidWizard').addEventListener('click', () => {
-      const rangeBar = parseFloat(document.getElementById('pidSensorRange').value) || 10;
-      const targetBar = parseFloat(document.getElementById('pidTargetBar').value) || 4;
-      const pct = Math.max(0, Math.min(100, (targetBar / rangeBar) * 100)).toFixed(1);
-      state.paramSet['F01.01'] = '6';
-      state.paramSet['F13.00'] = '0';
-      state.paramSet['F13.01'] = pct;
-      state.paramSet['F13.02'] = '0';
-      state.paramSet['F13.03'] = String((rangeBar * 10).toFixed(1));
-      appendAudit('apply_pid_wizard', { F01_01: 6, F13_01_pct: pct, sensor_bar: rangeBar });
-      showToast(`Пресет ПИД сохранен: F01.01=6, F13.01=${pct}% (${targetBar} бар из ${rangeBar} бар)`, 'success');
-    });
+    const displayedPlans = new Map();
 
-    function updateH00Wizard() {
-      const mode = document.getElementById('h00ModeSelect').value;
-      const rot = document.getElementById('h00RotationMin').value;
-      const pipeFill = document.getElementById('chkPipeFill').checked;
-      const dryRun = document.getElementById('chkDryRun').checked;
-      const derag = document.getElementById('chkDeragging').checked;
-      const fire = document.getElementById('chkFireMode').checked;
-
-      const lines = [
-        `H00.00 (0x4000 / EE 0xC000) = ${mode} (Режим каскада насосов)`,
-        `H00.13 (0x400D / EE 0xC00D) = ${rot} мин (Период ротации насосов)`,
-        `H00.15 (0x400F / EE 0xC00F) = ${derag ? '1 (Самоочистка рабочего колеса ВКЛ)' : '0 (Откл)'}`,
-        `H00.23..25 (0x4017..0x4019) = ${pipeFill ? '30.0 Гц / 60 с (Плавное заполнение трубы ВКЛ)' : '0 (Откл)'}`,
-        `H00.26..28 (0x401A..0x401C) = ${dryRun ? '1 / 40.0% / 10.0 с (Защита сухого хода ВКЛ)' : '0 (Откл)'}`,
-        `H00.43..47 (0x402B..0x402F) = ${fire ? 'Активен (Пожарный режим A650M)' : '0 (Откл)'}`
-      ];
-      document.getElementById('h00PreviewBox').innerHTML = lines.map(l => `<div>• ${l}</div>`).join('');
+    function previewSettings(boxId, buttonId, readSettings) {
+      const box = document.getElementById(boxId);
+      const apply = document.getElementById(buttonId);
+      try {
+        const plan = WizardProfile.makePlan(readSettings(), wizardCatalog);
+        box.textContent = plan.map(({ id, value, raw, label }) =>
+          `${id} · ${wizardCatalog.get(id).n} = ${value}${label ? ' — ' + label : ''} [raw ${raw}]`).join('\n');
+        displayedPlans.set(buttonId, plan);
+        apply.disabled = false;
+        return plan;
+      } catch (err) {
+        displayedPlans.delete(buttonId);
+        apply.disabled = true;
+        box.textContent = err.message;
+      }
     }
 
-    ['h00ModeSelect', 'h00RotationMin', 'chkPipeFill', 'chkDryRun', 'chkDeragging', 'chkFireMode'].forEach(id => {
-      document.getElementById(id).addEventListener('change', updateH00Wizard);
-      document.getElementById(id).addEventListener('input', updateH00Wizard);
-    });
+    function populateWizardSelect(elementId, code, selected, allowKeep = false) {
+      const select = document.getElementById(elementId);
+      if (allowKeep) select.add(new Option('Сохранить настройку профиля', ''));
+      for (const { code: value, label } of enumChoices(wizardCatalog.get(code))) {
+        select.add(new Option(`${value} — ${label}`, value));
+      }
+      select.value = selected;
+    }
 
-    document.getElementById('btnApplyH00Wizard').addEventListener('click', () => {
-      state.paramSet['H00.00'] = document.getElementById('h00ModeSelect').value;
-      state.paramSet['H00.13'] = document.getElementById('h00RotationMin').value;
-      state.paramSet['H00.15'] = document.getElementById('chkDeragging').checked ? '1' : '0';
-      state.paramSet['H00.26'] = document.getElementById('chkDryRun').checked ? '1' : '0';
-      state.paramSet['H00.27'] = '40.0';
-      state.paramSet['H00.28'] = '10.0';
-      appendAudit('apply_h00_wizard', { H00_00: state.paramSet['H00.00'], H00_13: state.paramSet['H00.13'], H00_26: state.paramSet['H00.26'] });
-      showToast('Настройки каскада насосов и защит H00 (0x4000..0x402F) записаны в конфигурацию', 'success');
-    });
+    populateWizardSelect('h00ModeSelect', 'H00.01', '1');
+    populateWizardSelect('h00RotationPolicy', 'H00.12', '2');
+    populateWizardSelect('h00FireMode', 'H00.42', '', true);
+
+    function updateH00Wizard() {
+      const field = id => document.getElementById(id);
+      const enabled = field('h00Enabled').checked;
+      const rotation = field('h00RotationPolicy').value;
+      const fill = field('chkPipeFill').checked;
+      for (const id of ['h00ModeSelect', 'h00RotationPolicy', 'chkPipeFill', 'chkDryRun', 'chkDeragging', 'h00FireMode']) {
+        field(id).disabled = !enabled;
+      }
+      field('h00RotationMin').disabled = !enabled || rotation !== '2';
+      field('fillRate').disabled = field('fillTarget').disabled = !enabled || !fill;
+      previewSettings('h00PreviewBox', 'btnApplyH00Wizard', () => WizardProfile.pumpSettings({
+        enabled, mode: field('h00ModeSelect').value, rotation, minutes: field('h00RotationMin').valueAsNumber,
+        fill, fillRate: field('fillRate').valueAsNumber, fillTarget: field('fillTarget').valueAsNumber,
+        clean: field('chkDeragging').checked, dryRun: field('chkDryRun').checked, fire: field('h00FireMode').value
+      }));
+    }
+
+    for (const id of ['h00Enabled', 'h00ModeSelect', 'h00RotationPolicy', 'h00RotationMin', 'chkPipeFill',
+                      'fillRate', 'fillTarget', 'chkDryRun', 'chkDeragging', 'h00FireMode']) {
+      document.getElementById(id).addEventListener('input', updateH00Wizard);
+    }
+
+    for (const [buttonId, operation] of [['btnApplyPidWizard', 'apply_pid_wizard'], ['btnApplyH00Wizard', 'apply_h00_wizard']]) {
+      document.getElementById(buttonId).addEventListener('click', () => {
+        const plan = displayedPlans.get(buttonId);
+        if (!plan) return;
+        WizardProfile.applyPlan(plan, state.paramSet, explicitProfileCodes);
+        appendAudit(operation, Object.fromEntries(plan.map(row => [row.id, row.value])));
+        showToast(`Применено к профилю проекта: ${plan.length} параметров`, 'success');
+      });
+    }
 
     function renderFaultTable() {
       const tbody = document.getElementById('faultTableBody');

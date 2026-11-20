@@ -1,6 +1,6 @@
 [package]
 name = "oni-a650-pro"
-version = "0.2.0"
+version = "0.2.0-preview.4"
 description = "ONI A650 / A650M Engineering Configurator PRO 2.0 (Rust + Tauri v2)"
 authors = ["Ted Koch <uzbatsu-beep>"]
 license = "MIT"
