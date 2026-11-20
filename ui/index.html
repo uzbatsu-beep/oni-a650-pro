@@ -1061,7 +1061,7 @@
 
   <dialog id="aboutDialog" class="about-dialog pro-card" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle" class="text-lg font-bold">О программе</h2>
-    <p class="mt-2 text-sm">ONI A650M PRO · 0.2.0-preview.4 · ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
+    <p class="mt-2 text-sm">ONI A650M PRO · 0.2.0-preview.5 · ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
     <p class="mt-2 text-sm">Выберите COM-порт для работы по RS-485 (Modbus RTU) или откройте симулятор. При запуске включён режим «Только чтение».</p>
     <div class="flex items-center justify-between gap-3 mt-4 text-sm">
       <a id="projectLink" href="https://github.com/uzbatsu-beep/oni-a650-pro" target="_blank" rel="noopener noreferrer">Проект и README на GitHub</a>
@@ -1278,6 +1278,31 @@
 
     const wizardCatalog = new Map(PARAM_CATALOG.map(p => [p.id, p]));
     const explicitProfileCodes = new Set();
+    const profileReadings = new Map();
+    let profileReadSession = null;
+
+    function lastReadOrDefault(p) {
+      if (!profileReadings.has(p.id)) return p.def;
+      return String(Number((profileReadings.get(p.id) * p.sc).toFixed(3)));
+    }
+
+    function rememberReading(session, p, word) {
+      if (session !== driveSession.active || session !== profileReadSession) throw new Error('Сеанс чтения изменился.');
+      profileReadings.set(p.id, WizardProfile.readRaw(p, word));
+      const value = lastReadOrDefault(p);
+      if (!explicitProfileCodes.has(p.id)) state.paramSet[p.id] = value;
+      return value;
+    }
+
+    function startProfileSession(session) {
+      const previousCodes = [...profileReadings.keys()];
+      profileReadings.clear();
+      profileReadSession = session;
+      for (const id of previousCodes) {
+        if (!explicitProfileCodes.has(id)) state.paramSet[id] = wizardCatalog.get(id).def;
+      }
+      if (previousCodes.length) renderParamTable();
+    }
 
     PARAM_CATALOG.forEach(p => {
       state.paramSet[p.id] = p.def;
@@ -1659,6 +1684,7 @@
       try {
         const status = await pending;
         if (!status || revision !== driveSession.revision) return;
+        startProfileSession(status);
         if (command === 'auto_scan_drive') {
           document.getElementById('quickBaudSelect').value = String(status.baud_rate);
           document.getElementById('quickFormatSelect').value = status.frame_format;
@@ -1942,10 +1968,7 @@
         try {
           const res = await driveRequest(session, 'read_registers_fc03', { address: addrInt, count: 1 });
           if (res && Array.isArray(res.values) && res.values.length > 0) {
-            const rawVal = res.values[0];
-            const numeric = p.dt === 'int16' ? (rawVal << 16) >> 16 : rawVal;
-            const engVal = +((numeric * (p.sc || 1)).toFixed(3));
-            state.paramSet[p.id] = String(engVal);
+            rememberReading(session, p, res.values[0]);
             okCount++;
           }
         } catch (err) {
@@ -2053,9 +2076,15 @@
           inputHtml = renderEnumSelect(p, curVal);
         } else {
           inputHtml = `<div class="flex items-center gap-1.5">
-            <input type="text" data-param-input="${p.id}" value="${curVal}" class="pro-input w-28 px-2 py-1 text-xs mono ${isDiff ? 'font-bold pro-text-primary' : ''}" />
+            <input type="text" data-param-input="${p.id}" value="${escapeHtml(curVal)}" class="pro-input w-28 px-2 py-1 text-xs mono ${isDiff ? 'font-bold pro-text-primary' : ''}" />
             <span class="text-[11px] pro-text-muted mono">${p.min}..${p.max} ${p.u}</span>
           </div>`;
+        }
+
+        if (p.rw === 'RW' && p.rwMode !== 0) {
+          const measured = profileReadings.has(p.id) ? ` · Считано: ${lastReadOrDefault(p)} ${p.u}` : '';
+          inputHtml += `<label class="inline-flex items-center gap-1 mt-1 text-[11px] pro-text-muted">
+            <input type="checkbox" data-profile-param="${p.id}" ${explicitProfileCodes.has(p.id) ? 'checked' : ''}>В профиль${measured}</label>`;
         }
 
         const noteHtml = p.nt ? `<div class="text-[10px] mono pro-text-muted mt-0.5">${p.nt}</div>` : '';
@@ -2085,6 +2114,19 @@
         inp.addEventListener('change', (e) => {
           const pid = inp.getAttribute('data-param-input');
           state.paramSet[pid] = e.target.value.trim();
+          explicitProfileCodes.add(pid);
+          renderParamTable();
+        });
+      });
+
+      tbody.querySelectorAll('[data-profile-param]').forEach(input => {
+        input.addEventListener('change', () => {
+          const id = input.dataset.profileParam;
+          if (input.checked) explicitProfileCodes.add(id);
+          else {
+            explicitProfileCodes.delete(id);
+            state.paramSet[id] = lastReadOrDefault(wizardCatalog.get(id));
+          }
           renderParamTable();
         });
       });
@@ -2167,9 +2209,7 @@
               const res = await driveRequest(session, 'read_registers_fc03', { address: addrInt, count: 1 });
               if (res && Array.isArray(res.values) && res.values.length > 0) {
                 const rawVal = res.values[0];
-                const numeric = pObj.dt === 'int16' ? (rawVal << 16) >> 16 : rawVal;
-                const engVal = +((numeric * (pObj.sc || 1)).toFixed(3));
-                state.paramSet[pid] = String(engVal);
+                const engVal = rememberReading(session, pObj, rawVal);
                 document.getElementById('lastTxFrame').textContent = res.tx_hex;
                 const rxEl = document.getElementById('lastRxFrame');
                 if (rxEl) rxEl.textContent = res.rx_hex;
@@ -2207,7 +2247,7 @@
     document.getElementById('btnLoadSampleOds').addEventListener('click', () => {
       const settings = { 'F03.00': 12, 'F03.01': 15, 'F01.01': 6, 'F13.00': 0,
         'F13.01': 40, 'F13.02': 0, 'H00.00': 1, 'H00.01': 1, 'H00.12': 2, 'H00.13': 360, 'H00.26': 1 };
-      const plan = WizardProfile.makePlan(settings, wizardCatalog);
+      const plan = WizardProfile.makePlan(settings, wizardCatalog, state.paramSet);
       WizardProfile.applyPlan(plan, state.paramSet, explicitProfileCodes);
       state.paramFilterMode = 'diff';
       document.querySelectorAll('.pfilter-btn').forEach(b => {
@@ -2233,27 +2273,19 @@
     }
 
     document.getElementById('btnExportOds').addEventListener('click', () => {
-      const lines = [
-        '﻿; Файл конфигурации ONI Drive Studio',
-        '[General]',
-        `Model = ПЧ ONI ${DRIVE_MODEL}`,
-        `Address = ${state.slaveId}`,
-        'Port = COM3',
-        'Baud = 1',
-        'Parity = 0',
-        'StopBit = 2',
-        'Mode = 1',
-        '',
-        '[Parameter Set]'
-      ];
+      const session = profileReadings.size ? profileReadSession : driveSession.active;
+      const connection = session ? {
+        portName: session.port_name, slaveId: session.slave_id, baudRate: session.baud_rate,
+        frameFormat: session.frame_format, simulated: session.simulated
+      } : syncConnectionControls(true);
       try {
-        lines.push(...WizardProfile.profileRows(PARAM_CATALOG, state.paramSet, explicitProfileCodes));
+        const content = WizardProfile.profileText(DRIVE_MODEL, connection, !!session, PARAM_CATALOG,
+          state.paramSet, explicitProfileCodes, profileReadings);
+        downloadTextFile(`ONI_${DRIVE_MODEL}_Profile.ods`, content);
       } catch (err) {
         showToast(err.message, 'error');
         return;
       }
-      lines.push('', '[Parameter Read]', '', '[Check Parameter]');
-      downloadTextFile(`ONI_${DRIVE_MODEL}_Profile.ods`, lines.join('\r\n'));
       appendAudit('export_ods', { model: DRIVE_MODEL });
       showToast(`Профиль ONI_${DRIVE_MODEL}_Profile.ods сохранен (UTF-8-BOM INI)`, 'success');
     });
@@ -2533,7 +2565,7 @@
       const box = document.getElementById(boxId);
       const apply = document.getElementById(buttonId);
       try {
-        const plan = WizardProfile.makePlan(readSettings(), wizardCatalog);
+        const plan = WizardProfile.makePlan(readSettings(), wizardCatalog, state.paramSet);
         box.textContent = plan.map(({ id, value, raw, label }) =>
           `${id} · ${wizardCatalog.get(id).n} = ${value}${label ? ' — ' + label : ''} [raw ${raw}]`).join('\n');
         displayedPlans.set(buttonId, plan);
