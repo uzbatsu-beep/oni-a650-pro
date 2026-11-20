@@ -429,7 +429,7 @@
               <span>Вых. напр.</span><span class="mono pro-text-primary">U00.02</span>
             </div>
             <div class="text-2xl font-bold mono mt-1.5">
-              <span id="kpiOutVolt">0</span> <span class="text-xs font-normal pro-text-muted">В</span>
+              <span id="kpiOutVolt">—</span> <span class="text-xs font-normal pro-text-muted">В</span>
             </div>
             <div class="text-[11px] pro-text-muted mono mt-1">3002H · Контур V/F / SVC</div>
           </div>
@@ -455,18 +455,21 @@
           <div class="lg:col-span-8 pro-card p-4 space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h3 class="text-sm font-bold">Осциллограф реального времени (Trace / Scope U00.00, U00.03, U00.06)</h3>
+                <h3 class="text-sm font-bold">Осциллограмма реального времени</h3>
                 <p class="text-xs pro-text-muted">Поодиночный опрос регистров <span class="mono">FC03 (count=1): 0x3000, 0x3003, 0x3006, 0x3002, 0x2100</span> (совместимо со всеми ревизиями ПЧ)</p>
               </div>
-              <div class="flex items-center gap-3 text-xs">
-                <span class="flex items-center gap-1.5 font-semibold pro-text-primary">
+              <div class="flex flex-wrap items-center gap-3 text-xs">
+                <span class="flex items-center gap-1.5 font-semibold pro-text-primary" title="U00.00">
                   <span class="w-2.5 h-2.5 rounded-sm inline-block" style="background: var(--primary);"></span> Частота (Гц)
                 </span>
-                <span class="flex items-center gap-1.5 font-semibold" style="color: var(--warning);">
+                <span class="flex items-center gap-1.5 font-semibold" style="color: var(--warning);" title="U00.03">
                   <span class="w-2.5 h-2.5 rounded-sm inline-block" style="background: var(--warning);"></span> Ток ×3 (А)
                 </span>
-                <span class="flex items-center gap-1.5 font-semibold" style="color: var(--success);">
+                <span class="flex items-center gap-1.5 font-semibold" style="color: var(--success);" title="U00.06">
                   <span class="w-2.5 h-2.5 rounded-sm inline-block" style="background: var(--success);"></span> Шина DC ÷10 (В)
+                </span>
+                <span class="flex items-center gap-1.5 font-semibold" style="color: var(--info);" title="U00.02 · 380 В соответствует отметке 38">
+                  <span aria-hidden="true" style="width: 18px; border-top: 2px dashed currentColor;"></span> Выходное напряжение ÷10 (В)
                 </span>
                 <button id="btnClearScope" type="button" class="pro-btn-outline px-2.5 py-1 text-xs cursor-pointer">Сбросить график</button>
               </div>
@@ -1759,7 +1762,10 @@
       if (telemetryMode === 'waiting') return;
       if (telemetryMode === 'rs485') {
         if (polling) {
-          if (performance.now() - lastSnapshotAt > 5000) clearReadings();
+          if (performance.now() - lastSnapshotAt > 5000) {
+            clearReadings();
+            recordScopeSample();
+          }
           return;
         }
         const epoch = telemetryEpoch;
@@ -1842,10 +1848,15 @@
         fActEl.textContent = fObj ? fObj.description : 'Аварийный останов ПЧ';
       }
 
+      recordScopeSample();
+    }
+
+    function recordScopeSample() {
       state.scopeHistory.push({
         f: state.actualFreqHz,
         i: state.outputCurrentA,
-        dc: state.dcBusVolt
+        dc: state.dcBusVolt,
+        outputVolt: state.outputVolt
       });
       if (state.scopeHistory.length > 90) state.scopeHistory.shift();
       drawScope();
@@ -1868,11 +1879,11 @@
       const primaryCol = style.getPropertyValue('--primary').trim() || '#f36c21';
       const warnCol = style.getPropertyValue('--warning').trim() || '#ffa726';
       const succCol = style.getPropertyValue('--success').trim() || '#4caf50';
+      const infoCol = style.getPropertyValue('--info').trim() || '#0284c7';
       const mutedCol = style.getPropertyValue('--text-muted').trim() || '#888';
 
       const pts = state.scopeHistory;
       // Symmetric signed axis: reverse frequency crosses the center zero line.
-      // DC bus and current remain positive with existing overlay scaling.
       const axisMax = A650ScopeMath.rangeForSamples(pts);
       for (let tick = 0; tick <= 4; tick++) {
         const value = axisMax * (1 - tick / 2);
@@ -1890,7 +1901,7 @@
 
       if (pts.length < 2) return;
 
-      function plotLine(key, scale, color) {
+      function plotLine(key, color) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 2.2;
         ctx.beginPath();
@@ -1901,7 +1912,7 @@
             return;
           }
           const x = 38 + (idx / 89) * (W - 50);
-          const v = p[key] * scale;
+          const v = p[key] * A650ScopeMath.scales[key];
           const y = A650ScopeMath.yCoordinate(v, axisMax, H);
           if (segmentStarted) ctx.lineTo(x, y);
           else ctx.moveTo(x, y);
@@ -1910,9 +1921,12 @@
         ctx.stroke();
       }
 
-      plotLine('dc', 0.1, succCol);
-      plotLine('i', 3, warnCol);
-      plotLine('f', 1, primaryCol);
+      plotLine('dc', succCol);
+      plotLine('i', warnCol);
+      plotLine('f', primaryCol);
+      ctx.setLineDash([6, 4]);
+      plotLine('outputVolt', infoCol);
+      ctx.setLineDash([]);
     }
 
     setInterval(stepSimulation, 350);

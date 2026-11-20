@@ -2,12 +2,13 @@
 (function (root) {
   'use strict';
 
-  // F00 U/I/DC overlay values are scaled in the UI (current ×3, DC bus ÷10).
-  // The signed frequency is intentionally NOT clamped to zero.
+  const scales = Object.freeze({ f: 1, i: 3, dc: 0.1, outputVolt: 0.1 });
+  const channels = Object.entries(scales);
+
   function rangeForSamples(samples) {
     let maximum = 60;
     for (const sample of samples) {
-      for (const [key, scale] of [['f', 1], ['i', 3], ['dc', 0.1]]) {
+      for (const [key, scale] of channels) {
         if (Number.isFinite(sample[key])) {
           maximum = Math.max(maximum, Math.abs(sample[key] * scale));
         }
@@ -22,7 +23,7 @@
     return 16 + ((axisMaximum - value) / (2 * axisMaximum)) * (height - 32);
   }
 
-  const api = Object.freeze({ rangeForSamples, yCoordinate });
+  const api = Object.freeze({ scales, rangeForSamples, yCoordinate });
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.A650ScopeMath = api;
 })(typeof window !== 'undefined' ? window : globalThis);
