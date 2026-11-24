@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(all(feature = "gui", windows))]
+mod file_dialog;
+
 #[cfg(not(feature = "gui"))]
 use a650_core::actor::DriveSession;
 
@@ -62,6 +65,14 @@ mod gui_app {
             slave_id,
             timeout_ms.unwrap_or(400),
         )
+    }
+
+    #[tauri::command]
+    pub async fn connect_ethernet(
+        state: tauri::State<'_, SharedDriveState>, ip: String, port: u16, slave_id: u8, timeout_ms: Option<u64>,
+    ) -> Result<ConnectionStatusDto, String> {
+        state.0.lock().map_err(|e| e.to_string())?
+            .connect_ethernet(&ip, port, slave_id, timeout_ms.unwrap_or(500))
     }
 
     #[tauri::command]
@@ -149,6 +160,21 @@ mod gui_app {
     }
 
     #[tauri::command]
+    pub async fn save_export_file(window: tauri::Window, format: String, content: String) -> Result<Option<String>, String> {
+        #[cfg(windows)]
+        {
+            let owner = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+            tauri::async_runtime::spawn_blocking(move || crate::file_dialog::save(owner, &format, &content))
+                .await.map_err(|e| e.to_string())?
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (window, format, content);
+            Err("Системный диалог доступен в сборке для Windows.".into())
+        }
+    }
+
+    #[tauri::command]
     pub fn import_ods_text(content: String) -> Result<StudioProfile, String> {
         parse_studio_profile(&content, Some("ПЧ ONI A650M")).map_err(|e| e.to_string())
     }
@@ -166,6 +192,7 @@ mod gui_app {
                 list_serial_ports,
                 get_connection_status,
                 connect_serial,
+                connect_ethernet,
                 disconnect_serial,
                 auto_scan_drive,
                 poll_drive_telemetry,
@@ -173,6 +200,7 @@ mod gui_app {
                 write_register_fc06,
                 read_registers_fc03,
                 calc_parameter_addresses,
+                save_export_file,
                 import_ods_text,
                 export_ods_text,
             ])
