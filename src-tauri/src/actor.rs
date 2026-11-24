@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serialport::{ClearBuffer, DataBits, Parity, SerialPort, SerialPortType, StopBits};
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -29,6 +30,7 @@ pub struct ConnectionStatusDto {
     pub simulated: bool,
     pub connected: bool,
     pub write_enabled: bool,
+    pub ethernet_endpoint: Option<SocketAddr>,
     pub port_name: String,
     pub baud_rate: u32,
     pub frame_format: String,
@@ -96,12 +98,35 @@ const TELEMETRY_SINGLE_REG_POLL_ORDER: [u16; 8] = [
     0x3001, // U00.01 Настройка частоты (0.01 Гц)
 ];
 
+enum RtuLink {
+    Serial(Box<dyn SerialPort>),
+    Ethernet(TcpStream),
+}
+
+impl RtuLink {
+    fn exchange(&mut self, request: &[u8], tail: usize, timeout: Duration) -> Result<Vec<u8>, String> {
+        match self {
+            Self::Serial(port) => {
+                let _ = port.clear(ClearBuffer::Input);
+                exchange_rtu(port.as_mut(), request, tail, timeout)
+            }
+            Self::Ethernet(stream) => exchange_rtu(stream, request, tail, timeout),
+        }
+    }
+}
+
+fn exchange_rtu<T: Read + Write + ?Sized>(stream: &mut T, request: &[u8], tail: usize, timeout: Duration) -> Result<Vec<u8>, String> {
+    stream.write_all(request).and_then(|_| stream.flush()).map_err(|e| e.to_string())?;
+    read_modbus_rtu_response(stream, tail, timeout)
+}
+
 pub struct DriveSession {
     session_id: u64,
     pub model: String,
     pub slave_id: u8,
     pub simulated: bool,
     pub connected: bool,
+    pub ethernet_endpoint: Option<SocketAddr>,
     pub port_name: String,
     pub baud_rate: u32,
     pub frame_format: String,
@@ -115,7 +140,7 @@ pub struct DriveSession {
     pub last_error: Option<String>,
     pub poll_step_idx: usize,
     pub last_bus_io: Option<Instant>,
-    pub serial_handle: Option<Box<dyn SerialPort>>,
+    link: Option<RtuLink>,
     // Only validated physical FC03 replies for the active device belong here.
     measured: HashMap<u16, (u16, Instant)>,
     pub guard: SafetyGuard,
@@ -155,8 +180,9 @@ impl Default for DriveSession {
             session_id: 0,
             model: "A650M".to_string(),
             slave_id: 1,
-            simulated: true,
+            simulated: false,
             connected: false,
+            ethernet_endpoint: None,
             port_name: "COM3".to_string(),
             baud_rate: 9600,
             frame_format: "1-8-N-2".to_string(),
@@ -170,7 +196,7 @@ impl Default for DriveSession {
             last_error: None,
             poll_step_idx: 0,
             last_bus_io: None,
-            serial_handle: None,
+            link: None,
             measured: HashMap::new(),
             guard,
             sim_regs,
@@ -192,8 +218,8 @@ fn parse_serial_format(fmt: &str) -> (Parity, StopBits) {
 }
 
 /// Reads an exact number of bytes from `port` up to `deadline`, tolerating chunked USB-UART arrivals.
-fn read_bytes_with_deadline(
-    port: &mut dyn SerialPort,
+fn read_bytes_with_deadline<R: Read + ?Sized>(
+    port: &mut R,
     buf: &mut [u8],
     deadline: Instant,
 ) -> Result<(), std::io::Error> {
@@ -206,9 +232,7 @@ fn read_bytes_with_deadline(
             ));
         }
         match port.read(&mut buf[offset..]) {
-            Ok(0) => {
-                thread::sleep(Duration::from_millis(2));
-            }
+            Ok(0) => return Err(std::io::ErrorKind::UnexpectedEof.into()),
             Ok(n) => {
                 offset += n;
             }
@@ -234,8 +258,8 @@ fn read_bytes_with_deadline(
 /// Smart Modbus RTU response reader:
 /// Reads the 3-byte header `[slave, fc, byte2]` first so 5-byte Modbus exception frames
 /// (`0x83` / `0x86`) are caught immediately instead of hanging `read_exact` waiting for `5 + 2*count` bytes!
-fn read_modbus_rtu_response(
-    port: &mut dyn SerialPort,
+fn read_modbus_rtu_response<R: Read + ?Sized>(
+    port: &mut R,
     expected_tail_after_header: usize,
     timeout: Duration,
 ) -> Result<Vec<u8>, String> {
@@ -302,6 +326,7 @@ impl DriveSession {
             simulated: self.simulated,
             connected: self.connected,
             write_enabled: !self.guard.read_only,
+            ethernet_endpoint: self.ethernet_endpoint,
             port_name: self.port_name.clone(),
             baud_rate: self.baud_rate,
             frame_format: self.frame_format.clone(),
@@ -317,8 +342,11 @@ impl DriveSession {
     }
 
     fn ensure_port_open(&mut self) -> Result<(), String> {
-        if self.serial_handle.is_some() {
+        if self.link.is_some() {
             return Ok(());
+        }
+        if self.ethernet_endpoint.is_some() {
+            return Err("Соединение TCP закрыто. Подключитесь к шлюзу повторно.".into());
         }
         let (parity, stop_bits) = parse_serial_format(&self.frame_format);
         let port = serialport::new(&self.port_name, self.baud_rate)
@@ -333,7 +361,7 @@ impl DriveSession {
                     self.port_name, self.baud_rate, self.frame_format, e
                 )
             })?;
-        self.serial_handle = Some(port);
+        self.link = Some(RtuLink::Serial(port));
         // Allow USB-RS485 transceiver (CP210x / CH340) lines to settle after open
         thread::sleep(Duration::from_millis(25));
         Ok(())
@@ -359,8 +387,9 @@ impl DriveSession {
         timeout_ms: u64,
     ) -> Result<ConnectionStatusDto, String> {
         // Drop previous serial handle so new port/baud/parity takes effect cleanly
-        self.serial_handle = None;
+        self.link = None;
         self.reset_measurements();
+        self.ethernet_endpoint = None;
         self.simulated = simulated;
         self.port_name = port_name.trim().to_string();
         self.baud_rate = baud_rate;
@@ -381,14 +410,38 @@ impl DriveSession {
             return Ok(self.status_dto());
         }
 
-        // Open persistent handle & verify handshake on U00.00 (0x3000, count = 1)
         self.ensure_port_open()?;
+        self.verify_connection()
+    }
+
+    pub fn connect_ethernet(&mut self, ip: &str, port: u16, slave: u8, timeout_ms: u64) -> Result<ConnectionStatusDto, String> {
+        self.disconnect();
+        let ip: IpAddr = ip.trim().parse().map_err(|_| "Введите IP-адрес шлюза.")?;
+        if port == 0 || !(1..=247).contains(&slave) {
+            return Err("Порт должен быть 1–65535, адрес ПЧ 1–247.".into());
+        }
+        let endpoint = SocketAddr::new(ip, port);
+        self.ethernet_endpoint = Some(endpoint);
+        self.port_name = endpoint.to_string();
+        self.slave_id = slave;
+        self.timeout_ms = timeout_ms.clamp(150, 2000);
+        let timeout = Duration::from_millis(self.timeout_ms);
+        let stream = TcpStream::connect_timeout(&endpoint, timeout)
+            .map_err(|e| format!("Шлюз {endpoint}: {e}"))?;
+        stream.set_read_timeout(Some(Duration::from_millis(40))).map_err(|e| e.to_string())?;
+        stream.set_write_timeout(Some(timeout)).map_err(|e| e.to_string())?;
+        stream.set_nodelay(true).map_err(|e| e.to_string())?;
+        self.link = Some(RtuLink::Ethernet(stream));
+        self.verify_connection()
+    }
+
+    fn verify_connection(&mut self) -> Result<ConnectionStatusDto, String> {
         match self.read_registers_ex(0x3000, 1) {
             Ok(res) => {
                 self.connected = true;
                 self.last_error = None;
                 self.record_audit(
-                    "connect_rs485_ok",
+                    "connect_rtu_ok",
                     serde_json::json!({
                         "port": self.port_name,
                         "baud": self.baud_rate,
@@ -403,10 +456,10 @@ impl DriveSession {
             }
             Err(err) => {
                 self.connected = false;
-                self.serial_handle = None;
+                self.link = None;
                 self.last_error = Some(err.clone());
                 self.record_audit(
-                    "connect_rs485_failed",
+                    "connect_rtu_failed",
                     serde_json::json!({
                         "port": self.port_name,
                         "baud": self.baud_rate,
@@ -421,11 +474,12 @@ impl DriveSession {
     }
 
     pub fn disconnect(&mut self) -> ConnectionStatusDto {
-        self.serial_handle = None;
+        self.link = None;
         self.reset_measurements();
-        self.simulated = true;
+        self.ethernet_endpoint = None;
+        self.simulated = false;
         self.last_error = None;
-        self.record_audit("disconnect_rs485", serde_json::json!({ "simulated": true }));
+        self.record_audit("disconnect", serde_json::json!({}));
         self.status_dto()
     }
 
@@ -481,10 +535,28 @@ impl DriveSession {
             }
         };
 
+        // State 0 means parameter setup. Confirm zero output frequency and
+        // re-read the state after it, in the same locked session as FC06.
+        let mut verified_state = fresh_state;
+        let mut setup_frequency = None;
+        if address != 0x2000 && address != 0x2001 && fresh_state == Some(0) {
+            let verification = self.read_registers_ex(0x3000, 1).and_then(|frequency| {
+                self.read_registers_ex(0x2100, 1).map(|state| (frequency.values[0], state.values[0]))
+            });
+            match verification {
+                Ok((frequency, 0)) => setup_frequency = Some(frequency),
+                Ok(_) => verified_state = None,
+                Err(error) => {
+                    self.guard.read_only = true;
+                    return self.reject_write(address, value, error);
+                }
+            }
+        }
+
         let parameter = self.parameters.iter().find(|p| {
             p.access == "RW" && parameter_addresses(&p.param_id).ok().map(|a| a.ram) == Some(address)
         });
-        if let Err(err) = self.guard.check_write(self.slave_id, address, value, fresh_state, parameter) {
+        if let Err(err) = self.guard.check_write_with_frequency(self.slave_id, address, value, verified_state, parameter, setup_frequency) {
             return self.reject_write(address, value, err.to_string());
         }
 
@@ -546,15 +618,8 @@ impl DriveSession {
             self.enforce_interframe_guard();
             let timeout = Duration::from_millis(self.timeout_ms.max(250));
 
-            let io_res: Result<Vec<u8>, String> = (|| {
-                let port = self.serial_handle.as_mut().unwrap();
-                let _ = port.clear(ClearBuffer::Input);
-                port.write_all(&tx_bytes)
-                    .map_err(|e| format!("Ошибка записи в {}: {}", self.port_name, e))?;
-                let _ = port.flush();
-                // Normal FC06 echo has 8 bytes (3 header + 5 tail)
-                read_modbus_rtu_response(port.as_mut(), 5, timeout)
-            })();
+            let io_res = self.link.as_mut().ok_or("Транспорт не подключён")?
+                .exchange(&tx_bytes, 5, timeout);
 
             self.last_bus_io = Some(Instant::now());
 
@@ -562,7 +627,7 @@ impl DriveSession {
                 Ok(buf) => buf,
                 Err(_) => {
                     self.err_count += 1;
-                    self.serial_handle = None;
+                    self.link = None;
                     self.connected = false;
                     self.measured.clear();
                     self.guard.read_only = true;
@@ -577,6 +642,7 @@ impl DriveSession {
             if let Err(err) = parse_write_response(req, &rx_buf) {
                 self.err_count += 1;
                 self.connected = false;
+                self.link = None;
                 self.measured.clear();
                 self.guard.read_only = true;
                 let msg = format!("FC06 echo unverified on 0x{:04X}: {} (RX: {}); Read-Only enabled", address, err, rx_s);
@@ -657,6 +723,7 @@ impl DriveSession {
             if let Err(e) = self.ensure_port_open() {
                 self.err_count += 1;
                 self.connected = false;
+                self.link = None;
                 self.measured.clear();
                 self.guard.read_only = true;
                 self.last_error = Some(e.clone());
@@ -666,14 +733,8 @@ impl DriveSession {
             let timeout = Duration::from_millis(self.timeout_ms.max(200));
             let expected_tail = (count as usize) * 2 + 2;
 
-            let io_res: Result<Vec<u8>, String> = (|| {
-                let port = self.serial_handle.as_mut().unwrap();
-                let _ = port.clear(ClearBuffer::Input);
-                port.write_all(&tx_bytes)
-                    .map_err(|e| format!("Ошибка отправки в {}: {}", self.port_name, e))?;
-                let _ = port.flush();
-                read_modbus_rtu_response(port.as_mut(), expected_tail, timeout)
-            })();
+            let io_res = self.link.as_mut().ok_or("Транспорт не подключён")?
+                .exchange(&tx_bytes, expected_tail, timeout);
 
             self.last_bus_io = Some(Instant::now());
 
@@ -685,7 +746,7 @@ impl DriveSession {
                     self.measured.clear();
                     self.guard.read_only = true;
                     // Re-open on next attempt if OS serial handle glitched
-                    self.serial_handle = None;
+                    self.link = None;
                     let msg = format!(
                         "Нет ответа ПЧ (ID={}, рег. 0x{:04X}, {} шт.) на {}: {}",
                         self.slave_id, address, count, self.port_name, e
@@ -722,6 +783,7 @@ impl DriveSession {
                 self.measured.retain(|addr, _| !addr.checked_sub(address).is_some_and(|n| n < count));
             } else {
                 self.connected = false;
+                self.link = None;
                 self.measured.clear();
                 self.guard.read_only = true;
             }
@@ -802,9 +864,10 @@ impl DriveSession {
         slave_id: u8,
     ) -> Result<ConnectionStatusDto, String> {
         self.reset_measurements();
+        self.ethernet_endpoint = None;
         let bauds = [9600u32, 19200, 38400, 4800, 57600, 115200];
         let formats = ["1-8-N-2", "1-8-N-1", "1-8-E-1", "1-8-O-1"];
-        self.serial_handle = None;
+        self.link = None;
         self.port_name = port_name.trim().to_string();
         self.slave_id = slave_id;
         self.simulated = false;
@@ -812,7 +875,7 @@ impl DriveSession {
 
         for &b in &bauds {
             for &fmt in &formats {
-                self.serial_handle = None;
+                self.link = None;
                 self.baud_rate = b;
                 self.frame_format = fmt.to_string();
                 if let Ok(res) = self.read_registers_ex(0x3000, 1) {
@@ -837,7 +900,7 @@ impl DriveSession {
 
         self.timeout_ms = 450;
         self.connected = false;
-        self.serial_handle = None;
+        self.link = None;
         let msg = format!(
             "ПЧ (Slave {}) на порту {} не ответил ни на одной комбинации (9600..115200 бод, 8N2/8N1/8E1/8O1).",
             slave_id, self.port_name
@@ -930,6 +993,7 @@ mod telemetry_tests {
     fn legacy_client_stop_hint_cannot_bypass_a_running_motor_interlock() {
         let mut drive = DriveSession::default();
         drive.guard.read_only = false;
+        drive.simulated = true;
         drive.sim_regs.insert(0x2100, 1);
         assert!(drive.write_register_safe_ex(0x0101, 0, None).is_err());
         assert_eq!(drive.tx_count, 0);
@@ -970,6 +1034,8 @@ mod telemetry_tests {
     #[test]
     fn physical_snapshot_uses_only_validated_reads_from_this_connection() {
         let mut drive = DriveSession::default();
+        assert_eq!(drive.telemetry_snapshot().dc_bus_volt, None);
+        drive.simulated = true;
         assert_eq!(drive.telemetry_snapshot().dc_bus_volt, Some(538));
         drive.simulated = false;
         assert_eq!(drive.telemetry_snapshot().dc_bus_volt, None);

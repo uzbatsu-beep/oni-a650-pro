@@ -91,17 +91,65 @@
     return parameter.dt === 'int16' && word >= 0x8000 ? word - 0x10000 : word;
   }
 
+  function importPlan(rawSet, catalog, context) {
+    const settings = Object.create(null);
+    for (const [id, raw] of Object.entries(rawSet)) {
+      const p = catalog.get(id);
+      if (!p || !Number.isInteger(raw)) throw new Error('Неизвестная или некорректная уставка ' + id);
+      settings[id] = Number((raw * p.sc).toFixed(3));
+    }
+    return makePlan(settings, catalog, context);
+  }
+
+  // Standalone browser fallback. The Windows app uses the native ODS reader.
+  function browserProfileSet(text) {
+    let section = '', model = '';
+    const set = Object.create(null);
+    for (const line of text.split(/\r?\n/).map(s => s.trim())) {
+      if (!line || line.startsWith(';')) continue;
+      if (line.startsWith('[') && line.endsWith(']')) { section = line.slice(1, -1).trim(); continue; }
+      const pos = line.indexOf('=');
+      if (pos < 0) continue;
+      const key = line.slice(0, pos).trim(), value = line.slice(pos + 1).trim();
+      if (section === 'General' && key === 'Model') model = value;
+      if (section === 'Parameter Set') {
+        if (Object.hasOwn(set, key) || !/^[+-]?\d+$/.test(value)) throw new Error('Некорректная строка ' + key);
+        set[key] = Number(value);
+      }
+    }
+    if (model !== 'ПЧ ONI A650M') throw new Error('Ожидается профиль ПЧ ONI A650M.');
+    return set;
+  }
+
+  function validGatewayIp(ip) {
+    if (typeof ip !== 'string' || !ip.length) return false;
+    if (ip.includes(':')) {
+      if (!/^[a-fA-F0-9:.]+$/.test(ip)) return false;
+      try { return !!new URL('http://[' + ip + ']/').hostname; } catch (_) { return false; }
+    }
+    const parts = ip.split('.');
+    return parts.length === 4 && parts.every(part => /^(0|[1-9]\d{0,2})$/.test(part) && Number(part) <= 255);
+  }
+
   function profileText(model, connection, confirmed, catalog, values, explicit, readings) {
     const { portName, slaveId, baudRate, frameFormat, simulated } = connection;
     const frame = /^1-(8)-([NEO])-([12])$/.exec(frameFormat);
-    if (!frame || !Number.isInteger(slaveId) || slaveId < 1 || slaveId > 247
+    const ethernet = connection.mode === 'ethernet';
+    if (!Number.isInteger(slaveId) || slaveId < 1 || slaveId > 247) throw new Error('Проверьте адрес ПЧ.');
+    if (!ethernet && (!frame
         || !Number.isInteger(baudRate) || baudRate <= 0 || typeof portName !== 'string'
-        || /[\r\n]/.test(portName) || (!simulated && !portName.trim())) throw new Error('Проверьте параметры подключения перед экспортом.');
+        || /[\r\n]/.test(portName) || (confirmed && !simulated && !portName.trim()))) throw new Error('Проверьте параметры подключения перед экспортом.');
     const lines = ['\uFEFF; Файл конфигурации ONI Drive Studio', '[General]', 'Model = ПЧ ONI ' + model,
       'Address = ' + slaveId];
-    if (portName) lines.push('Port = ' + portName);
-    lines.push('BaudRate = ' + baudRate, 'FrameFormat = ' + frame.slice(1).join(''),
-      'Transport = ' + (simulated ? 'Simulator' : 'RS-485'), 'ConnectionSource = ' + (confirmed ? 'Confirmed' : 'Selected'),
+    if (ethernet) {
+      if (!validGatewayIp(connection.ip) || !Number.isInteger(connection.port)
+          || connection.port < 1 || connection.port > 65535) throw new Error('Проверьте IP-адрес и TCP-порт шлюза.');
+      lines.push('Transport = RTU over Ethernet', 'IP = ' + connection.ip, 'TcpPort = ' + connection.port);
+    } else {
+      if (portName) lines.push('Port = ' + portName);
+      lines.push('BaudRate = ' + baudRate, 'FrameFormat = ' + frame.slice(1).join(''), 'Transport = ' + (simulated ? 'Simulator' : 'RS-485'));
+    }
+    lines.push('ConnectionSource = ' + (confirmed ? 'Confirmed' : 'Selected'),
       '', '[Parameter Set]', ...profileRows(catalog, values, explicit), '', '[Parameter Read]');
     for (const p of catalog) {
       if (readings.has(p.id)) lines.push(p.id + ' = ' + readings.get(p.id));
@@ -110,7 +158,7 @@
     return lines.join('\r\n');
   }
 
-  const api = { pumpSettings, pidSettings, makePlan, applyPlan, profileRows, readRaw, profileText };
+  const api = { pumpSettings, pidSettings, makePlan, applyPlan, profileRows, readRaw, profileText, importPlan, browserProfileSet, validGatewayIp };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WizardProfile = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -36,7 +36,7 @@ pub enum SafetyError {
     UnknownDriveState(u16),
     #[error("Unsupported drive state {0} (0x2100); refusing FC06")]
     UnsupportedDriveState(u16),
-    #[error("Parameter {code} (0x{address:04X}) may only be written with the drive STOPPED (0x2100=4), current state={state}")]
+    #[error("Для записи {code} требуется останов (2100H=4) или настройка (2100H=0) с подтверждённой нулевой выходной частотой. Получено 2100H={state}.")]
     ParameterRequiresStop { code: String, address: u16, state: u16 },
     #[error("Control command {command} is not supported for 0x2000")]
     InvalidControlCommand { command: u16 },
@@ -93,7 +93,7 @@ impl SafetyGuard {
 
     /// Authoritative write policy: caller-supplied stop-only hints are never trusted.
     ///
-    /// All parameter writes require STOP (state 4), regardless of the UI mode.
+    /// Without a separate fresh frequency check, only state 4 permits parameter edits.
     /// Physical callers must pass the state obtained from an immediate FC03 read,
     /// not a cached sample or a user-supplied value.
     pub fn check_write(
@@ -103,6 +103,13 @@ impl SafetyGuard {
         value: u16,
         fresh_drive_state: Option<u16>,
         parameter: Option<&ParameterRecord>,
+    ) -> Result<(), SafetyError> {
+        self.check_write_with_frequency(slave, address, value, fresh_drive_state, parameter, None)
+    }
+
+    pub(crate) fn check_write_with_frequency(
+        &self, slave: u8, address: u16, value: u16, fresh_drive_state: Option<u16>,
+        parameter: Option<&ParameterRecord>, setup_frequency: Option<u16>,
     ) -> Result<(), SafetyError> {
         self.check_address(slave, address)?;
         let state = fresh_drive_state.ok_or(SafetyError::UnknownDriveState(address))?;
@@ -141,7 +148,7 @@ impl SafetyGuard {
                 if RESTRICTED_PARAMETERS.contains(&parameter.param_id.as_str()) {
                     return Err(SafetyError::RestrictedParameter(parameter.param_id.clone()));
                 }
-                if state != 4 {
+                if state != 4 && !(state == 0 && setup_frequency == Some(0)) {
                     return Err(SafetyError::ParameterRequiresStop {
                         code: parameter.param_id.clone(),
                         address,

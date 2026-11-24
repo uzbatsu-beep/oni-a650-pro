@@ -18,9 +18,9 @@ F00.16,F00,"Напряжение на выходе, %",0x0010,high,RW,uint16,0.1
 F00.17,F00,AVR,0x0011,high,RW,enum16,1,,0,2,0,"0=Отключен;1=Включен;2=Отключен (при VDC > VDCном), Включен (при VDC <= VDCном)",ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8011
 F00.18,F00,Управление вентилятором,0x0012,high,RW,enum16,1,,0,1,1,0=Запуск при включенном питания;1=Работает во время эксплуатации,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8012
 F00.19,F00,Заводской пароль,0x0013,high,RW,uint16,1,,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8013
-F00.20,F00,"Номинальная мощность ПЧ, кВт",0x0014,high,R,uint16,0.1,min,0.2,1000.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8014
-F00.21,F00,"Номинальное напряжение ПЧ, В",0x0015,high,R,uint16,1,min,60,660,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8015
-F00.22,F00,"Номинальная сила тока ПЧ, А",0x0016,high,R,uint16,0.1,min,0.1,1500.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8016
+F00.20,F00,"Номинальная мощность ПЧ, кВт",0x0014,high,R,uint16,0.1,kW,0.2,1000.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8014
+F00.21,F00,"Номинальное напряжение ПЧ, В",0x0015,high,R,uint16,1,V,60,660,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8015
+F00.22,F00,"Номинальная сила тока ПЧ, А",0x0016,high,R,uint16,0.1,A,0.1,1500.0,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8016
 F00.23,F00,Версия микропрограммы,0x0017,high,R,uint16,0.001,,0.000,65.535,----,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8017
 F00.24,F00,Пароль дилера,0x0018,high,RW,uint16,1,,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8018
 F00.25,F00,"Установка времени работы, ч",0x0019,high,RW,uint16,1,h,0,65535,0,,ONI_A650M_Manual.pdf;ONI_A650_Manual.pdf;OniDriveStudio_v1.2.7.0,high,no,EEPROM=0x8019

@@ -95,7 +95,33 @@ test('offline headers describe selected settings and distinguish simulation', ()
   assert.match(text, /Transport = Simulator\r\nConnectionSource = Selected/);
   assert.match(text, /FrameFormat = 8O1/);
   assert.doesNotMatch(text, /Port =|COM3|\r\nBaud =/);
-  for (const change of [{ slaveId: 0 }, { baudRate: 0 }, { frameFormat: '' }, { portName: 'COM1\r\n' }, { simulated: false }]) {
+  for (const change of [{ slaveId: 0 }, { baudRate: 0 }, { frameFormat: '' }, { portName: 'COM1\r\n' }]) {
     assert.throws(() => profileText('A650M', { ...cfg, ...change }, false, catalog, defaults, new Set(), new Map()));
+  }
+});
+
+test('Ethernet profile records gateway, TCP port and station without COM settings', () => {
+  const cfg = { mode: 'ethernet', ip: '192.168.1.10', port: 4001, slaveId: 17 };
+  const text = profileText('A650M', cfg, true, catalog, defaults, new Set(), new Map());
+  for (const field of ['Transport = RTU over Ethernet','IP = 192.168.1.10','TcpPort = 4001','Address = 17']) assert.ok(text.includes(field));
+  assert.doesNotMatch(text, /BaudRate|FrameFormat|\r\nPort =/);
+  assert.throws(() => profileText('A650M', {...cfg, port: 0}, true, catalog, defaults, new Set(), new Map()));
+});
+
+test('opening an ODS converts only intended setpoints and rejects invalid values atomically', () => {
+  const { importPlan, browserProfileSet } = require('../wizard-profile.js');
+  const text = '\uFEFF[General]\r\nModel = ПЧ ONI A650M\r\n[Parameter Set]\r\nF03.00 = 1\r\nF06.01 = -12\r\n[Parameter Read]\r\nU00.02 = 380\r\n';
+  const plan = importPlan(browserProfileSet(text), byId, defaults);
+  assert.deepEqual(plan.map(p=>[p.id,p.value]), [['F03.00','0.1'],['F06.01','-1.2']]);
+  assert.throws(()=>importPlan({ 'F03.00': 1, 'U00.02': 380 },byId,defaults));
+  assert.throws(()=>browserProfileSet(text.replace('A650M','A650')));
+  assert.throws(()=>browserProfileSet(text+'[Parameter Set]\nF03.00 = 2'));
+});
+
+test('drive nameplate units agree in the UI and native parameter catalog', () => {
+  const csv = readFileSync(path.join(__dirname, '../../src-tauri/data/parameters.csv'), 'utf8');
+  for (const [code, unit] of [['F00.20','kW'],['F00.21','V'],['F00.22','A']]) {
+    assert.equal(byId.get(code).u, unit);
+    assert.ok(csv.split('\n').find(row=>row.startsWith(code+',')).includes(','+unit+','));
   }
 });
