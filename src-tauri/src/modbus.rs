@@ -23,6 +23,8 @@ pub enum ModbusError {
     SlaveMismatch { expected: u8, actual: u8 },
     #[error("unexpected Modbus function 0x{0:02X} in FC03 response")]
     UnexpectedReadFunction(u8),
+    #[error("unexpected Modbus function 0x{0:02X} in FC06 response")]
+    UnexpectedWriteFunction(u8),
     #[error("Modbus exception 0x{code:02X} ({name}) on function 0x{function:02X}")]
     DriveException {
         function: u8,
@@ -70,6 +72,8 @@ pub fn exception_name(code: u8) -> &'static str {
         0x02 => "IllegalDataAddress",
         0x03 => "IllegalDataValue",
         0x04 => "OperationNotExecuted",
+        0x0A => "GatewayPathUnavailable",
+        0x0B => "GatewayTargetFailedToRespond",
         0x11 => "ReadOnlyParameter",
         _ => "UnknownException",
     }
@@ -171,6 +175,12 @@ pub fn verify_frame_crc(frame: &[u8]) -> Result<(), ModbusError> {
 
 pub fn parse_read_response(expected_slave: u8, expected_count: u16, frame: &[u8]) -> Result<Vec<u16>, ModbusError> {
     verify_frame_crc(frame)?;
+    parse_read_body(expected_slave, expected_count, &frame[..frame.len() - 2])
+}
+
+// Both transports carry a unit identifier followed by the same Modbus PDU.
+pub(crate) fn parse_read_body(expected_slave: u8, expected_count: u16, frame: &[u8]) -> Result<Vec<u16>, ModbusError> {
+    if frame.len() < 3 { return Err(ModbusError::FrameTooShort(frame.len())); }
     if frame[0] != expected_slave {
         return Err(ModbusError::SlaveMismatch {
             expected: expected_slave,
@@ -179,8 +189,8 @@ pub fn parse_read_response(expected_slave: u8, expected_count: u16, frame: &[u8]
     }
     let fc = frame[1];
     if fc == (FC_READ_REGISTERS | EXCEPTION_BIT) {
-        if frame.len() != 5 {
-            return Err(ModbusError::UnexpectedLength { expected: 5, actual: frame.len() });
+        if frame.len() != 3 {
+            return Err(ModbusError::UnexpectedLength { expected: 3, actual: frame.len() });
         }
         let code = frame[2];
         return Err(ModbusError::DriveException {
@@ -196,7 +206,7 @@ pub fn parse_read_response(expected_slave: u8, expected_count: u16, frame: &[u8]
     if usize::from(frame[2]) != expected_bytes {
         return Err(ModbusError::UnexpectedLength { expected: expected_bytes, actual: usize::from(frame[2]) });
     }
-    let expected_len = 5 + expected_bytes;
+    let expected_len = 3 + expected_bytes;
     if frame.len() != expected_len {
         return Err(ModbusError::UnexpectedLength {
             expected: expected_len,
@@ -204,7 +214,7 @@ pub fn parse_read_response(expected_slave: u8, expected_count: u16, frame: &[u8]
         });
     }
     let mut values = Vec::with_capacity(expected_count as usize);
-    for chunk in frame[3..frame.len() - 2].chunks_exact(2) {
+    for chunk in frame[3..].chunks_exact(2) {
         values.push((u16::from(chunk[0]) << 8) | u16::from(chunk[1]));
     }
     Ok(values)
@@ -212,6 +222,11 @@ pub fn parse_read_response(expected_slave: u8, expected_count: u16, frame: &[u8]
 
 pub fn parse_write_response(req: WriteRegisterRequest, frame: &[u8]) -> Result<(), ModbusError> {
     verify_frame_crc(frame)?;
+    parse_write_body(req, &frame[..frame.len() - 2])
+}
+
+pub(crate) fn parse_write_body(req: WriteRegisterRequest, frame: &[u8]) -> Result<(), ModbusError> {
+    if frame.len() < 3 { return Err(ModbusError::FrameTooShort(frame.len())); }
     if frame[0] != req.slave {
         return Err(ModbusError::SlaveMismatch {
             expected: req.slave,
@@ -219,7 +234,10 @@ pub fn parse_write_response(req: WriteRegisterRequest, frame: &[u8]) -> Result<(
         });
     }
     let fc = frame[1];
-    if (fc & EXCEPTION_BIT) != 0 {
+    if fc == (FC_WRITE_SINGLE_REGISTER | EXCEPTION_BIT) {
+        if frame.len() != 3 {
+            return Err(ModbusError::UnexpectedLength { expected: 3, actual: frame.len() });
+        }
         let code = frame[2];
         return Err(ModbusError::DriveException {
             function: fc & !EXCEPTION_BIT,
@@ -227,9 +245,10 @@ pub fn parse_write_response(req: WriteRegisterRequest, frame: &[u8]) -> Result<(
             name: exception_name(code),
         });
     }
-    if frame.len() != 8 {
+    if fc != FC_WRITE_SINGLE_REGISTER { return Err(ModbusError::UnexpectedWriteFunction(fc)); }
+    if frame.len() != 6 {
         return Err(ModbusError::UnexpectedLength {
-            expected: 8,
+            expected: 6,
             actual: frame.len(),
         });
     }

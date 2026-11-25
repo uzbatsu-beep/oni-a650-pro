@@ -134,7 +134,7 @@
   function profileText(model, connection, confirmed, catalog, values, explicit, readings) {
     const { portName, slaveId, baudRate, frameFormat, simulated } = connection;
     const frame = /^1-(8)-([NEO])-([12])$/.exec(frameFormat);
-    const ethernet = connection.mode === 'ethernet';
+    const ethernet = connection.mode === 'ethernet' || connection.mode === 'modbus_tcp';
     if (!Number.isInteger(slaveId) || slaveId < 1 || slaveId > 247) throw new Error('Проверьте адрес ПЧ.');
     if (!ethernet && (!frame
         || !Number.isInteger(baudRate) || baudRate <= 0 || typeof portName !== 'string'
@@ -144,7 +144,7 @@
     if (ethernet) {
       if (!validGatewayIp(connection.ip) || !Number.isInteger(connection.port)
           || connection.port < 1 || connection.port > 65535) throw new Error('Проверьте IP-адрес и TCP-порт шлюза.');
-      lines.push('Transport = RTU over Ethernet', 'IP = ' + connection.ip, 'TcpPort = ' + connection.port);
+      lines.push(connection.mode === 'modbus_tcp' ? 'Transport = Modbus TCP/IP' : 'Transport = RTU over Ethernet', 'IP = ' + connection.ip, 'TcpPort = ' + connection.port);
     } else {
       if (portName) lines.push('Port = ' + portName);
       lines.push('BaudRate = ' + baudRate, 'FrameFormat = ' + frame.slice(1).join(''), 'Transport = ' + (simulated ? 'Simulator' : 'RS-485'));

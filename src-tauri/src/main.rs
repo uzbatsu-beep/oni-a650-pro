@@ -9,7 +9,7 @@ use a650_core::actor::DriveSession;
 #[cfg(feature = "gui")]
 mod gui_app {
     use a650_core::actor::{
-        enumerate_ports, ConnectionStatusDto, DriveSession, DriveTelemetryDto,
+        enumerate_ports, ConnectionStatusDto, DriveSession, DriveTelemetryDto, EthernetProtocol,
         RegisterExchangeResultDto, SerialPortInfoDto, SharedDriveState,
     };
     use a650_core::addresses::parameter_addresses;
@@ -70,9 +70,10 @@ mod gui_app {
     #[tauri::command]
     pub async fn connect_ethernet(
         state: tauri::State<'_, SharedDriveState>, ip: String, port: u16, slave_id: u8, timeout_ms: Option<u64>,
+        protocol: Option<EthernetProtocol>,
     ) -> Result<ConnectionStatusDto, String> {
         state.0.lock().map_err(|e| e.to_string())?
-            .connect_ethernet(&ip, port, slave_id, timeout_ms.unwrap_or(500))
+            .connect_ethernet_with_protocol(&ip, port, slave_id, timeout_ms.unwrap_or(500), protocol.unwrap_or_default())
     }
 
     #[tauri::command]
