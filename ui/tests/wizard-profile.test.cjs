@@ -105,6 +105,9 @@ test('Ethernet profile records gateway, TCP port and station without COM setting
   const text = profileText('A650M', cfg, true, catalog, defaults, new Set(), new Map());
   for (const field of ['Transport = RTU over Ethernet','IP = 192.168.1.10','TcpPort = 4001','Address = 17']) assert.ok(text.includes(field));
   assert.doesNotMatch(text, /BaudRate|FrameFormat|\r\nPort =/);
+  const mbap = profileText('A650M', {...cfg, mode: 'modbus_tcp', port: 502}, true, catalog, defaults, new Set(), new Map());
+  assert.ok(mbap.includes('Transport = Modbus TCP/IP') && mbap.includes('TcpPort = 502'));
+  assert.doesNotMatch(mbap, /RTU over Ethernet|BaudRate|FrameFormat/);
   assert.throws(() => profileText('A650M', {...cfg, port: 0}, true, catalog, defaults, new Set(), new Map()));
 });
 

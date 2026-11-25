@@ -285,7 +285,8 @@
             <select id="quickConnMode" class="pro-input w-full px-2 py-1 font-semibold">
               <option value="sim">🟡 Режим: Симулятор (Offline)</option>
               <option value="rs485" selected>🔌 Режим: RS-485 (Реальный ПЧ)</option>
-              <option value="ethernet">RTU over Ethernet (TCP)</option>
+              <option value="modbus_tcp">Modbus TCP/IP (MBAP)</option>
+              <option value="ethernet">RTU over Ethernet (прозрачный TCP)</option>
             </select>
           </div>
           <label data-ethernet hidden>IP-адрес шлюза
@@ -709,7 +710,8 @@
                   <select id="connModeSelect" class="pro-input w-full px-2.5 py-1.5">
                     <option value="sim">Симулятор ПЧ (В памяти)</option>
                     <option value="rs485" selected>RS-485 (USB-COM порт)</option>
-                    <option value="ethernet">RTU over Ethernet (TCP)</option>
+                    <option value="modbus_tcp">Modbus TCP/IP (MBAP)</option>
+              <option value="ethernet">RTU over Ethernet (прозрачный TCP)</option>
             </select>
                 </div>
           <label data-ethernet hidden>IP-адрес шлюза
@@ -749,7 +751,7 @@
                   <input id="connSlaveInput" type="number" min="1" max="247" value="1" class="pro-input w-full px-2.5 py-1.5 mono" />
                 </div>
                 <div>
-                  <label class="block pro-text-muted mb-1">Период опроса (мс)</label>
+                  <label class="block pro-text-muted mb-1">Таймаут ответа (мс)</label>
                   <input id="connPollInput" type="number" min="100" max="2000" step="50" value="250" class="pro-input w-full px-2.5 py-1.5 mono" />
                 </div>
               </div>
@@ -1082,7 +1084,7 @@
 
   <dialog id="aboutDialog" class="about-dialog pro-card" aria-labelledby="aboutTitle">
     <h2 id="aboutTitle" class="text-lg font-bold">О программе</h2>
-    <p class="mt-2 text-sm">ONI A650M PRO · 0.2.0-preview.6 · ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
+    <p class="mt-2 text-sm">ONI A650M PRO · 0.2.0-preview.7 · ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
     <p class="mt-2 text-sm">Выберите COM-порт для работы по RS-485 (Modbus RTU) или откройте симулятор. При запуске включён режим «Только чтение».</p>
     <div class="flex items-center justify-between gap-3 mt-4 text-sm">
       <a id="projectLink" href="https://github.com/uzbatsu-beep/oni-a650-pro" target="_blank" rel="noopener noreferrer">Проект и README на GitHub</a>
@@ -1179,7 +1181,7 @@
       const btnQuick = document.getElementById('btnQuickConnect');
 
       const shortFmt = (statusDto.frame_format || state.format || '1-8-N-2').replace('1-', '').replace(/-/g, '');
-      if (fmtTxt) fmtTxt.textContent = statusDto.ethernet_endpoint ? 'RTU / TCP' : `${shortFmt} · ${statusDto.baud_rate || state.baud}`;
+      if (fmtTxt) fmtTxt.textContent = statusDto.ethernet_endpoint ? (statusDto.ethernet_protocol === 'modbus_tcp' ? ethernetLabels.modbus_tcp : ethernetLabels.ethernet) : `${shortFmt} · ${statusDto.baud_rate || state.baud}`;
 
       if (document.getElementById('statTxCount')) document.getElementById('statTxCount').textContent = String(statusDto.tx_count ?? 0);
       if (document.getElementById('statRxCount')) document.getElementById('statRxCount').textContent = String(statusDto.rx_count ?? 0);
@@ -1682,6 +1684,12 @@
       ['quickSlaveInput', 'connSlaveInput'], ['quickIp', 'connIp'], ['quickTcpPort', 'connTcpPort']
     ];
 
+    const ethernetLabels = { modbus_tcp: 'Modbus TCP/IP', ethernet: 'RTU / TCP' };
+    let previousMode = 'rs485';
+    const responseTimeout = document.getElementById('connPollInput');
+    let customTimeout = false;
+    responseTimeout.addEventListener('input', () => { customTimeout = responseTimeout.value !== ''; });
+
     function syncConnectionControls(fromSidebar) {
       const [mode, portName, baud, frameFormat, slave, ip, tcpPort] = connectionFields.map(([quick, full]) => {
         const source = document.getElementById(fromSidebar ? quick : full);
@@ -1691,13 +1699,22 @@
       state.baud = Number(baud);
       state.slaveId = Number(slave);
       state.format = frameFormat;
-      const ethernet = mode === 'ethernet';
+      const ethernet = Object.hasOwn(ethernetLabels, mode);
+      let effectivePort = tcpPort;
+      if (previousMode !== mode) {
+        if (mode === 'modbus_tcp' && !tcpPort) {
+          effectivePort = '502';
+          document.getElementById('quickTcpPort').value = document.getElementById('connTcpPort').value = effectivePort;
+        }
+        if (!customTimeout) responseTimeout.value = mode === 'modbus_tcp' ? '1000' : '250';
+        previousMode = mode;
+      }
       document.querySelectorAll('[data-ethernet]').forEach(el => { el.hidden = !ethernet; });
       for (const id of ['quickPortSelect','quickBaudSelect','connPortSelect','connBaudSelect','connFormatSelect']) {
         document.getElementById(id).parentElement.hidden = ethernet;
       }
       for (const id of ['quickFormatSelect','btnQuickAutoScan','btnAutoScanPort']) document.getElementById(id).hidden = ethernet;
-      return { mode, ip: ip.trim(), port: Number(tcpPort), simulated: mode === 'sim', portName, baudRate: state.baud, frameFormat, slaveId: state.slaveId };
+      return { mode, ip: ip.trim(), port: Number(effectivePort), simulated: mode === 'sim', portName, baudRate: state.baud, frameFormat, slaveId: state.slaveId };
     }
 
     function syncDriveControls() {
@@ -1708,8 +1725,8 @@
 
     async function changeDrive(command, args = {}) {
       if (batchRead) { batchRead.cancelled = true; batchRead = null; updateBatchButton(); }
-      document.getElementById('sidebarFormatText').textContent = document.getElementById('quickConnMode').value === 'ethernet'
-        ? 'RTU / TCP' : state.format.replace('1-', '').replace(/-/g, '') + ' · ' + state.baud;
+      document.getElementById('sidebarFormatText').textContent = ethernetLabels[document.getElementById('quickConnMode').value]
+        || state.format.replace('1-', '').replace(/-/g, '') + ' · ' + state.baud;
       const pending = driveSession.transition(command, args);
       const revision = driveSession.revision;
       state.allowWrite = false;
@@ -1761,13 +1778,14 @@
         showToast('Введите адрес ПЧ от 1 до 247.', 'warn');
         return;
       }
-      if (cfg.mode === 'ethernet') {
+      if (Object.hasOwn(ethernetLabels, cfg.mode)) {
         if (!WizardProfile.validGatewayIp(cfg.ip) || !Number.isInteger(cfg.port) || cfg.port < 1 || cfg.port > 65535) {
           showToast('Введите IP-адрес шлюза и TCP-порт от 1 до 65535.', 'warn');
           return;
         }
         return changeDrive('connect_ethernet', { ip: cfg.ip, port: cfg.port, slaveId: cfg.slaveId,
-          timeoutMs: Number(document.getElementById('connPollInput').value) || 500 });
+          protocol: cfg.mode === 'modbus_tcp' ? 'modbus_tcp' : 'rtu_over_tcp',
+          timeoutMs: Number(responseTimeout.value) || (cfg.mode === 'modbus_tcp' ? 1000 : 500) });
       }
       if (!cfg.simulated && !cfg.portName) { showToast('Выберите COM-порт.', 'warn'); return; }
       if (scan) {
@@ -1884,7 +1902,7 @@
             clearReadings();
           }
           updateConnectionIndicators({
-            ...tel, ethernet_endpoint: session.ethernet_endpoint,
+            ...tel, ethernet_endpoint: session.ethernet_endpoint, ethernet_protocol: session.ethernet_protocol,
             port_name: session.port_name, baud_rate: session.baud_rate,
             frame_format: session.frame_format, slave_id: session.slave_id
           });
@@ -1892,7 +1910,7 @@
           if (epoch !== telemetryEpoch) return;
           clearReadings();
           updateConnectionIndicators({simulated: false, connected: false,
-            port_name: driveSession.active?.port_name || '—', ethernet_endpoint: driveSession.active?.ethernet_endpoint, last_error: String(err)});
+            port_name: driveSession.active?.port_name || '—', ethernet_endpoint: driveSession.active?.ethernet_endpoint, ethernet_protocol: driveSession.active?.ethernet_protocol, last_error: String(err)});
         } finally {
           polling = false;
         }
@@ -2380,7 +2398,7 @@
       if (session?.ethernet_endpoint) {
         const endpoint = session.ethernet_endpoint;
         const colon = endpoint.lastIndexOf(':');
-        Object.assign(connection, { mode: 'ethernet', ip: endpoint.slice(0, colon).replace(/^\[|\]$/g, ''), port: Number(endpoint.slice(colon + 1)) });
+        Object.assign(connection, { mode: session.ethernet_protocol === 'modbus_tcp' ? 'modbus_tcp' : 'ethernet', ip: endpoint.slice(0, colon).replace(/^\[|\]$/g, ''), port: Number(endpoint.slice(colon + 1)) });
       }
       try {
         const content = WizardProfile.profileText(DRIVE_MODEL, connection, !!session, PARAM_CATALOG,

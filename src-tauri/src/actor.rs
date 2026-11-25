@@ -4,7 +4,7 @@ use crate::addresses::parameter_addresses;
 use crate::catalog::{load_embedded_faults, load_embedded_parameters, FaultRecord, ParameterRecord};
 use crate::modbus::{
     ModbusError,
-    crc16_modbus, format_hex, parse_read_response, parse_write_response, ReadRegistersRequest,
+    crc16_modbus, format_hex, parse_read_body, parse_read_response, parse_write_body, parse_write_response, ReadRegistersRequest,
     WriteRegisterRequest,
 };
 use crate::safety::{AuditLogEntry, SafetyError, SafetyGuard};
@@ -26,6 +26,7 @@ pub struct SerialPortInfoDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionStatusDto {
+    pub ethernet_protocol: Option<EthernetProtocol>,
     pub session_id: u64,
     pub simulated: bool,
     pub connected: bool,
@@ -98,19 +99,28 @@ const TELEMETRY_SINGLE_REG_POLL_ORDER: [u16; 8] = [
     0x3001, // U00.01 Настройка частоты (0.01 Гц)
 ];
 
-enum RtuLink {
-    Serial(Box<dyn SerialPort>),
-    Ethernet(TcpStream),
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EthernetProtocol {
+    #[default]
+    RtuOverTcp,
+    ModbusTcp,
 }
 
-impl RtuLink {
+enum DriveLink {
+    Serial(Box<dyn SerialPort>),
+    Ethernet(TcpStream, EthernetProtocol),
+}
+
+impl DriveLink {
     fn exchange(&mut self, request: &[u8], tail: usize, timeout: Duration) -> Result<Vec<u8>, String> {
         match self {
             Self::Serial(port) => {
                 let _ = port.clear(ClearBuffer::Input);
                 exchange_rtu(port.as_mut(), request, tail, timeout)
             }
-            Self::Ethernet(stream) => exchange_rtu(stream, request, tail, timeout),
+            Self::Ethernet(stream, EthernetProtocol::RtuOverTcp) => exchange_rtu(stream, request, tail, timeout),
+            Self::Ethernet(stream, EthernetProtocol::ModbusTcp) => exchange_modbus_tcp(stream, request, timeout),
         }
     }
 }
@@ -120,8 +130,28 @@ fn exchange_rtu<T: Read + Write + ?Sized>(stream: &mut T, request: &[u8], tail: 
     read_modbus_rtu_response(stream, tail, timeout)
 }
 
+fn exchange_modbus_tcp(stream: &mut TcpStream, request: &[u8], timeout: Duration) -> Result<Vec<u8>, String> {
+    stream.write_all(request).map_err(|e| e.to_string())?;
+    let deadline = Instant::now() + timeout;
+    let mut header = [0; 6];
+    read_bytes_with_deadline(stream, &mut header, deadline).map_err(|e| format!("Modbus TCP, заголовок MBAP: {e}"))?;
+    if header[..2] != request[..2] || header[2..4] != [0, 0] {
+        return Err(format!("Некорректный MBAP (Transaction ID / Protocol ID): {}", format_hex(&header)));
+    }
+    // Length includes Unit ID and at most 253 PDU bytes. TCP may fragment the reply.
+    let length = usize::from(u16::from_be_bytes([header[4], header[5]]));
+    if !(2..=254).contains(&length) { return Err(format!("Некорректная длина MBAP: {length}")); }
+    let mut frame = header.to_vec();
+    frame.resize(header.len() + length, 0);
+    read_bytes_with_deadline(stream, &mut frame[header.len()..], deadline)
+        .map_err(|e| format!("Modbus TCP, тело ответа: {e}"))?;
+    Ok(frame)
+}
+
 pub struct DriveSession {
     session_id: u64,
+    next_transaction_id: u16,
+    ethernet_protocol: EthernetProtocol,
     pub model: String,
     pub slave_id: u8,
     pub simulated: bool,
@@ -140,7 +170,7 @@ pub struct DriveSession {
     pub last_error: Option<String>,
     pub poll_step_idx: usize,
     pub last_bus_io: Option<Instant>,
-    link: Option<RtuLink>,
+    link: Option<DriveLink>,
     // Only validated physical FC03 replies for the active device belong here.
     measured: HashMap<u16, (u16, Instant)>,
     pub guard: SafetyGuard,
@@ -178,6 +208,8 @@ impl Default for DriveSession {
 
         Self {
             session_id: 0,
+            next_transaction_id: 1,
+            ethernet_protocol: EthernetProtocol::RtuOverTcp,
             model: "A650M".to_string(),
             slave_id: 1,
             simulated: false,
@@ -327,6 +359,7 @@ impl DriveSession {
             connected: self.connected,
             write_enabled: !self.guard.read_only,
             ethernet_endpoint: self.ethernet_endpoint,
+            ethernet_protocol: self.ethernet_endpoint.map(|_| self.ethernet_protocol),
             port_name: self.port_name.clone(),
             baud_rate: self.baud_rate,
             frame_format: self.frame_format.clone(),
@@ -361,7 +394,7 @@ impl DriveSession {
                     self.port_name, self.baud_rate, self.frame_format, e
                 )
             })?;
-        self.link = Some(RtuLink::Serial(port));
+        self.link = Some(DriveLink::Serial(port));
         // Allow USB-RS485 transceiver (CP210x / CH340) lines to settle after open
         thread::sleep(Duration::from_millis(25));
         Ok(())
@@ -415,6 +448,10 @@ impl DriveSession {
     }
 
     pub fn connect_ethernet(&mut self, ip: &str, port: u16, slave: u8, timeout_ms: u64) -> Result<ConnectionStatusDto, String> {
+        self.connect_ethernet_with_protocol(ip, port, slave, timeout_ms, EthernetProtocol::RtuOverTcp)
+    }
+
+    pub fn connect_ethernet_with_protocol(&mut self, ip: &str, port: u16, slave: u8, timeout_ms: u64, protocol: EthernetProtocol) -> Result<ConnectionStatusDto, String> {
         self.disconnect();
         let ip: IpAddr = ip.trim().parse().map_err(|_| "Введите IP-адрес шлюза.")?;
         if port == 0 || !(1..=247).contains(&slave) {
@@ -422,6 +459,8 @@ impl DriveSession {
         }
         let endpoint = SocketAddr::new(ip, port);
         self.ethernet_endpoint = Some(endpoint);
+        self.ethernet_protocol = protocol;
+        self.next_transaction_id = 1;
         self.port_name = endpoint.to_string();
         self.slave_id = slave;
         self.timeout_ms = timeout_ms.clamp(150, 2000);
@@ -431,8 +470,24 @@ impl DriveSession {
         stream.set_read_timeout(Some(Duration::from_millis(40))).map_err(|e| e.to_string())?;
         stream.set_write_timeout(Some(timeout)).map_err(|e| e.to_string())?;
         stream.set_nodelay(true).map_err(|e| e.to_string())?;
-        self.link = Some(RtuLink::Ethernet(stream));
+        self.link = Some(DriveLink::Ethernet(stream, protocol));
         self.verify_connection()
+    }
+
+    fn uses_mbap(&self) -> bool {
+        self.ethernet_endpoint.is_some() && self.ethernet_protocol == EthernetProtocol::ModbusTcp
+    }
+
+    fn wire_request(&mut self, rtu: [u8; 8]) -> Vec<u8> {
+        if !self.uses_mbap() { return rtu.to_vec(); }
+        let id = self.next_transaction_id;
+        self.next_transaction_id = id.wrapping_add(1);
+        // Both supported requests have a six-byte Unit ID + PDU.
+        let mut request = Vec::with_capacity(12);
+        request.extend_from_slice(&id.to_be_bytes());
+        request.extend_from_slice(&[0, 0, 0, 6]);
+        request.extend_from_slice(&rtu[..6]);
+        request
     }
 
     fn verify_connection(&mut self) -> Result<ConnectionStatusDto, String> {
@@ -446,6 +501,7 @@ impl DriveSession {
                         "port": self.port_name,
                         "baud": self.baud_rate,
                         "format": self.frame_format,
+                        "ethernet_protocol": self.ethernet_endpoint.map(|_| self.ethernet_protocol),
                         "slave_id": self.slave_id,
                         "rtt_ms": res.rtt_ms,
                         "tx_hex": res.tx_hex,
@@ -464,6 +520,7 @@ impl DriveSession {
                         "port": self.port_name,
                         "baud": self.baud_rate,
                         "format": self.frame_format,
+                        "ethernet_protocol": self.ethernet_endpoint.map(|_| self.ethernet_protocol),
                         "slave_id": self.slave_id,
                         "error": err
                     }),
@@ -562,7 +619,7 @@ impl DriveSession {
 
         let req = WriteRegisterRequest::new(self.slave_id, address, value)
             .map_err(|e| e.to_string())?;
-        let tx_bytes = req.to_bytes();
+        let tx_bytes = self.wire_request(req.to_bytes());
         let tx_hex = format_hex(&tx_bytes);
         self.tx_count += 1;
         self.last_tx_hex = tx_hex.clone();
@@ -625,13 +682,13 @@ impl DriveSession {
 
             let rx_buf = match io_res {
                 Ok(buf) => buf,
-                Err(_) => {
+                Err(error) => {
                     self.err_count += 1;
                     self.link = None;
                     self.connected = false;
                     self.measured.clear();
                     self.guard.read_only = true;
-                    let msg = SafetyError::WriteOutcomeUnknown { address, value }.to_string();
+                    let msg = format!("{}: {error}", SafetyError::WriteOutcomeUnknown { address, value });
                     self.last_error = Some(msg.clone());
                     return self.reject_write(address, value, msg);
                 }
@@ -639,7 +696,9 @@ impl DriveSession {
 
             let rx_s = format_hex(&rx_buf);
             self.last_rx_hex = rx_s.clone();
-            if let Err(err) = parse_write_response(req, &rx_buf) {
+            let echo = if self.uses_mbap() { parse_write_body(req, &rx_buf[6..]) }
+                else { parse_write_response(req, &rx_buf) };
+            if let Err(err) = echo {
                 self.err_count += 1;
                 self.connected = false;
                 self.link = None;
@@ -690,7 +749,7 @@ impl DriveSession {
     ) -> Result<RegisterExchangeResultDto, String> {
         let req = ReadRegistersRequest::new(self.slave_id, address, count)
             .map_err(|e| e.to_string())?;
-        let tx_bytes = req.to_bytes();
+        let tx_bytes = self.wire_request(req.to_bytes());
         let tx_hex = format_hex(&tx_bytes);
         self.tx_count += 1;
         self.last_tx_hex = tx_hex.clone();
@@ -748,7 +807,7 @@ impl DriveSession {
                     // Re-open on next attempt if OS serial handle glitched
                     self.link = None;
                     let msg = format!(
-                        "Нет ответа ПЧ (ID={}, рег. 0x{:04X}, {} шт.) на {}: {}",
+                        "Ошибка чтения ПЧ (ID={}, рег. 0x{:04X}, {} шт.) на {}: {}",
                         self.slave_id, address, count, self.port_name, e
                     );
                     self.last_error = Some(msg.clone());
@@ -778,7 +837,9 @@ impl DriveSession {
     }
 
     fn accept_reading(&mut self, address: u16, count: u16, frame: &[u8]) -> Result<Vec<u16>, ModbusError> {
-        let values = parse_read_response(self.slave_id, count, frame).inspect_err(|err| {
+        let decoded = if self.uses_mbap() { parse_read_body(self.slave_id, count, &frame[6..]) }
+            else { parse_read_response(self.slave_id, count, frame) };
+        let values = decoded.inspect_err(|err| {
             if matches!(err, ModbusError::DriveException { .. }) {
                 self.measured.retain(|addr, _| !addr.checked_sub(address).is_some_and(|n| n < count));
             } else {
