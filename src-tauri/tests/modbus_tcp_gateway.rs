@@ -106,3 +106,56 @@ fn wrong_fc06_echo_relocks_and_no_write_retry_is_sent() {
     assert!(drive.guard.read_only && !drive.connected);
     task.join().unwrap();
 }
+
+#[test]
+fn grouped_monitor_updates_all_scope_channels_from_one_mbap_reply() {
+    let (port, task) = gateway(|mut stream| {
+        request(&mut stream, 1, 3, 0x3000, 1);
+        reply(&mut stream, 1, &[1, 3, 2, 0, 0]);
+        request(&mut stream, 2, 3, 0x2100, 3);
+        reply(&mut stream, 2, &[1, 3, 6, 0, 1, 0, 2, 0, 0]);
+        for id in [3, 4] {
+            request(&mut stream, id, 3, 0x3000, 7);
+            reply(&mut stream, id, &[1, 3, 14, 0xec, 0x78, 0x13, 0x88, 1, 124, 0, 42, 0, 0, 0, 0, 2, 32]);
+        }
+    });
+    let mut drive = DriveSession::default();
+    drive.connect_ethernet_with_protocol("127.0.0.1", port, 1, 1000, EthernetProtocol::ModbusTcp).unwrap();
+    let first = drive.poll_monitor(true).unwrap();
+    assert_eq!(first.output_freq_hz, Some(-50.0));
+    assert_eq!(first.target_freq_hz, Some(50.0));
+    assert_eq!(first.output_volt, Some(380));
+    assert_eq!(first.dc_bus_volt, Some(544));
+    assert_eq!(first.output_current_a, Some(4.2));
+    assert_eq!(first.state_code, Some(1));
+    assert_eq!(first.status_bits, Some(2));
+    assert_eq!(first.fault_code, Some(0));
+    let second = drive.poll_monitor(true).unwrap();
+    assert!(second.scope_sample_ms.unwrap() > first.scope_sample_ms.unwrap());
+    assert!(!second.monitor_fallback && !second.write_enabled);
+    task.join().unwrap();
+}
+
+#[test]
+fn unsupported_mbap_block_falls_back_to_single_reads_for_the_session() {
+    let (port, task) = gateway(|mut stream| {
+        request(&mut stream, 1, 3, 0x3000, 1);
+        reply(&mut stream, 1, &[1, 3, 2, 0, 0]);
+        request(&mut stream, 2, 3, 0x2100, 3);
+        reply(&mut stream, 2, &[1, 0x83, 2]);
+        request(&mut stream, 3, 3, 0x3000, 1);
+        reply(&mut stream, 3, &[1, 3, 2, 0, 0]);
+        request(&mut stream, 4, 3, 0x2100, 1);
+        reply(&mut stream, 4, &[1, 3, 2, 0, 4]);
+    });
+    let mut drive = DriveSession::default();
+    drive.connect_ethernet_with_protocol("127.0.0.1", port, 1, 1000, EthernetProtocol::ModbusTcp).unwrap();
+    let rejected = drive.poll_monitor(true).unwrap();
+    assert!(rejected.connected && rejected.monitor_fallback);
+    assert!(rejected.scope_sample_ms.is_none());
+    assert!(drive.poll_monitor(true).unwrap().scope_sample_ms.is_some());
+    let next = drive.poll_monitor(true).unwrap();
+    assert_eq!(next.state_code, Some(4));
+    assert!(next.scope_sample_ms.is_none());
+    task.join().unwrap();
+}

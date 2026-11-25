@@ -47,6 +47,10 @@ pub struct ConnectionStatusDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DriveTelemetryDto {
+    /// Monotonic time of a fresh U00.00 reply received in this monitor call.
+    pub scope_sample_ms: Option<u64>,
+    /// The active MBAP device rejected one of the monitor blocks.
+    pub monitor_fallback: bool,
     pub connected: bool,
     pub simulated: bool,
     pub write_enabled: bool,
@@ -169,6 +173,9 @@ pub struct DriveSession {
     pub last_rx_hex: String,
     pub last_error: Option<String>,
     pub poll_step_idx: usize,
+    monitor_origin: Instant,
+    last_monitor_diagnostics: Option<Instant>,
+    monitor_fallback: bool,
     pub last_bus_io: Option<Instant>,
     link: Option<DriveLink>,
     // Only validated physical FC03 replies for the active device belong here.
@@ -227,6 +234,9 @@ impl Default for DriveSession {
             last_rx_hex: String::new(),
             last_error: None,
             poll_step_idx: 0,
+            monitor_origin: Instant::now(),
+            last_monitor_diagnostics: None,
+            monitor_fallback: false,
             last_bus_io: None,
             link: None,
             measured: HashMap::new(),
@@ -333,6 +343,9 @@ impl DriveSession {
         self.last_rtt_ms = 0;
         self.connected = false;
         self.poll_step_idx = 0;
+        self.monitor_origin = Instant::now();
+        self.last_monitor_diagnostics = None;
+        self.monitor_fallback = false;
     }
 
     fn sample(&self, address: u16) -> Option<u16> {
@@ -840,6 +853,11 @@ impl DriveSession {
         let decoded = if self.uses_mbap() { parse_read_body(self.slave_id, count, &frame[6..]) }
             else { parse_read_response(self.slave_id, count, frame) };
         let values = decoded.inspect_err(|err| {
+            if matches!(err, ModbusError::DriveException { code: 1..=3, .. })
+                && self.uses_mbap() && matches!((address, count), (0x3000, 7) | (0x2100, 3))
+            {
+                self.monitor_fallback = true;
+            }
             if matches!(err, ModbusError::DriveException { .. }) {
                 self.measured.retain(|addr, _| !addr.checked_sub(address).is_some_and(|n| n < count));
             } else {
@@ -868,17 +886,37 @@ impl DriveSession {
     /// Polls drive telemetry using single-register requests (`count = 1`) in round-robin order.
     /// Optional warning word 0x2103 is not required by the dashboard.
     pub fn poll_telemetry(&mut self) -> Result<DriveTelemetryDto, String> {
-        if !self.simulated {
-            let reg_addr =
-                TELEMETRY_SINGLE_REG_POLL_ORDER[self.poll_step_idx % TELEMETRY_SINGLE_REG_POLL_ORDER.len()];
-            self.poll_step_idx = (self.poll_step_idx + 1) % TELEMETRY_SINGLE_REG_POLL_ORDER.len();
+        self.poll_monitor(false)
+    }
 
-            // A rejected register is unavailable in this snapshot. The next tick
-            // continues the sweep even on firmware that rejects this address.
-            let _ = self.read_registers_ex(reg_addr, 1);
+    pub fn poll_monitor(&mut self, grouped: bool) -> Result<DriveTelemetryDto, String> {
+        if self.simulated {
+            return Ok(self.telemetry_snapshot());
         }
 
-        Ok(self.telemetry_snapshot())
+        let grouped = grouped && self.uses_mbap() && !self.monitor_fallback;
+        if grouped && self.last_monitor_diagnostics.map_or(true, |t| t.elapsed() >= Duration::from_secs(1)) {
+            self.last_monitor_diagnostics = Some(Instant::now());
+            let diagnostics = self.read_registers_ex(0x2100, 3);
+            if diagnostics.is_err() && (!self.connected || self.monitor_fallback) {
+                return Ok(self.telemetry_snapshot());
+            }
+        }
+
+        let (address, count) = if grouped {
+            (0x3000, 7)
+        } else {
+            let address = TELEMETRY_SINGLE_REG_POLL_ORDER[self.poll_step_idx % TELEMETRY_SINGLE_REG_POLL_ORDER.len()];
+            self.poll_step_idx = (self.poll_step_idx + 1) % TELEMETRY_SINGLE_REG_POLL_ORDER.len();
+            (address, 1)
+        };
+        let fresh_scope = self.read_registers_ex(address, count).is_ok() && address == 0x3000;
+        let mut snapshot = self.telemetry_snapshot();
+        if fresh_scope {
+            snapshot.scope_sample_ms = self.measured.get(&address)
+                .map(|(_, received)| received.duration_since(self.monitor_origin).as_millis() as u64);
+        }
+        Ok(snapshot)
     }
 
     fn telemetry_snapshot(&self) -> DriveTelemetryDto {
@@ -895,6 +933,8 @@ impl DriveSession {
         let dc_bus_volt = self.sample(0x3006);
 
         DriveTelemetryDto {
+            scope_sample_ms: None,
+            monitor_fallback: self.monitor_fallback,
             connected: self.connected,
             simulated: self.simulated,
             write_enabled: !self.guard.read_only,

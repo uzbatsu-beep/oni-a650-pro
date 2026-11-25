@@ -470,7 +470,17 @@
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 class="text-sm font-bold">Осциллограмма реального времени</h3>
-                <p class="text-xs pro-text-muted">Одиночное чтение FC03 · измерения U00 и диагностика 2100H–2102H</p>
+                <label class="text-xs pro-text-muted" for="monitorPeriod">Период опроса</label>
+                <select id="monitorPeriod" class="pro-input text-xs px-2 py-1" disabled>
+                  <option value="350">Одиночное чтение · 350 мс</option>
+                  <option value="50">50 мс · 20 Гц</option>
+                  <option value="100">100 мс · 10 Гц</option>
+                  <option value="250">250 мс · 4 Гц</option>
+                  <option value="500">500 мс · 2 Гц</option>
+                  <option value="1000">1000 мс · 1 Гц</option>
+                </select>
+                <span id="monitorInterval" class="text-xs pro-text-muted" title="Интервал между двумя успешными чтениями U00.00">По ответам ПЧ —</span>
+                <p id="monitorReadMode" class="text-xs pro-text-muted">Выбор периода доступен при подключении по Modbus TCP/IP (MBAP).</p>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-xs">
                 <span class="flex items-center gap-1.5 font-semibold pro-text-primary" title="U00.00">
@@ -1820,6 +1830,61 @@
     let telemetryMode = 'waiting';
     let polling = false;
     let lastSnapshotAt = 0;
+    const monitorPeriod = document.getElementById('monitorPeriod');
+    const monitorInterval = document.getElementById('monitorInterval');
+    const monitorReadMode = document.getElementById('monitorReadMode');
+    const singlePeriod = 350;
+    let monitorTimer = null;
+    let monitorFallback = false;
+    let monitorRetry = false;
+    let lastScopeSampleMs = null;
+    let preferredPeriod = String(singlePeriod);
+    try {
+      const saved = localStorage.getItem('oni.mbapMonitorPeriod');
+      if (Array.from(monitorPeriod.options).some(option => option.value === saved)) preferredPeriod = saved;
+    } catch (_) {}
+
+    function syncMonitorOptions() {
+      const mbap = telemetryMode === 'rs485' && driveSession.active?.ethernet_protocol === 'modbus_tcp';
+      monitorPeriod.disabled = !mbap || monitorFallback;
+      monitorPeriod.value = monitorPeriod.disabled ? String(singlePeriod) : preferredPeriod;
+      if (monitorFallback) monitorReadMode.textContent = 'ПЧ отклонил блочный запрос. Одиночное чтение каждые 350 мс до переподключения.';
+      else if (!mbap) monitorReadMode.textContent = 'Выбор периода доступен при подключении по Modbus TCP/IP (MBAP).';
+      else if (Number(monitorPeriod.value) === singlePeriod) monitorReadMode.textContent = 'FC03 · по одному регистру за запрос.';
+      else monitorReadMode.textContent = 'FC03 · U00.00–U00.06 одним запросом. Диагностика раз в секунду.';
+    }
+
+    function monitorPeriodMs() {
+      if (document.getElementById('tab-dashboard').classList.contains('hidden')) return singlePeriod;
+      return Number(monitorPeriod.value);
+    }
+
+    function resetMeasuredInterval() {
+      lastScopeSampleMs = null;
+      monitorInterval.textContent = 'По ответам ПЧ —';
+    }
+
+    function updateMeasuredInterval(stamp) {
+      if (!Number.isFinite(stamp)) return;
+      const elapsed = stamp - lastScopeSampleMs;
+      if (lastScopeSampleMs !== null && elapsed > 0) {
+        monitorInterval.textContent = 'По ответам ПЧ · ' + elapsed + ' мс · ' +
+          (1000 / elapsed).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + ' Гц';
+      }
+      lastScopeSampleMs = stamp;
+    }
+
+    monitorPeriod.addEventListener('change', () => {
+      preferredPeriod = monitorPeriod.value;
+      try { localStorage.setItem('oni.mbapMonitorPeriod', preferredPeriod); } catch (_) {}
+      telemetryEpoch++;
+      resetMeasuredInterval();
+      syncMonitorOptions();
+      if (monitorTimer !== null) {
+        clearTimeout(monitorTimer);
+        monitorTimer = setTimeout(runMonitorTick, monitorPeriodMs());
+      }
+    });
 
     function renderReadings() {
       for (const [id, value, digits, rawScale, rawOverride] of [
@@ -1849,7 +1914,11 @@
     function selectTelemetryMode(mode) {
       telemetryMode = mode;
       telemetryEpoch++;
-      lastSnapshotAt = 0;
+      monitorFallback = false;
+      monitorRetry = false;
+      lastSnapshotAt = performance.now();
+      resetMeasuredInterval();
+      syncMonitorOptions();
       state.scopeHistory = [];
       clearReadings();
       drawScope();
@@ -1868,25 +1937,33 @@
 
     async function stepSimulation() {
       if (telemetryMode === 'waiting') return;
+      let appendSample = true;
       if (telemetryMode === 'rs485') {
         if (polling) {
-          if (performance.now() - lastSnapshotAt > 5000) {
-            clearReadings();
-            recordScopeSample();
-          }
+          expireStalledPoll();
           return;
         }
         const epoch = telemetryEpoch;
+        const grouped = monitorPeriodMs() !== singlePeriod;
         polling = true;
         try {
           const session = driveSession.active;
-          const tel = await driveSession.request(session, 'poll_drive_telemetry');
+          const tel = await driveSession.request(session, 'poll_drive_telemetry', { grouped });
           if (epoch !== telemetryEpoch) return;
           if (!tel || tel.simulated) {
             selectTelemetryMode('waiting');
             return;
           }
           lastSnapshotAt = performance.now();
+          monitorRetry = !tel.connected || !!tel.last_error;
+          if (tel.monitor_fallback && !monitorFallback) {
+            monitorFallback = true;
+            resetMeasuredInterval();
+            syncMonitorOptions();
+          }
+          if (tel.connected && Number.isFinite(tel.output_freq_hz)) updateMeasuredInterval(tel.scope_sample_ms);
+          else resetMeasuredInterval();
+          appendSample = !grouped || Number.isFinite(tel.scope_sample_ms) || !Number.isFinite(tel.output_freq_hz);
           if (tel.connected) {
             state.driveState = tel.state_code ?? null;
             state.direction = outputDirection(tel.status_bits);
@@ -1909,6 +1986,8 @@
         } catch (err) {
           if (epoch !== telemetryEpoch) return;
           clearReadings();
+          monitorRetry = true;
+          resetMeasuredInterval();
           updateConnectionIndicators({simulated: false, connected: false,
             port_name: driveSession.active?.port_name || '—', ethernet_endpoint: driveSession.active?.ethernet_endpoint, ethernet_protocol: driveSession.active?.ethernet_protocol, last_error: String(err)});
         } finally {
@@ -1939,17 +2018,19 @@
       renderReadings();
 
       renderDriveDiagnostics();
-      recordScopeSample();
+      if (appendSample) recordScopeSample();
     }
 
     function recordScopeSample() {
+      const t = performance.now();
       state.scopeHistory.push({
+        t,
         f: state.actualFreqHz,
         i: state.outputCurrentA,
         dc: state.dcBusVolt,
         outputVolt: state.outputVolt
       });
-      if (state.scopeHistory.length > 90) state.scopeHistory.shift();
+      while (state.scopeHistory[0].t < t - 30000) state.scopeHistory.shift();
       drawScope();
     }
 
@@ -1997,12 +2078,13 @@
         ctx.lineWidth = 2.2;
         ctx.beginPath();
         let segmentStarted = false;
-        pts.forEach((p, idx) => {
+        const leftEdge = Math.max(pts[0].t, pts[pts.length - 1].t - 30000);
+        pts.forEach(p => {
           if (!Number.isFinite(p[key])) {
             segmentStarted = false;
             return;
           }
-          const x = 38 + (idx / 89) * (W - 50);
+          const x = 38 + ((p.t - leftEdge) / 30000) * (W - 50);
           const v = p[key] * A650ScopeMath.scales[key];
           const y = A650ScopeMath.yCoordinate(v, axisMax, H);
           if (segmentStarted) ctx.lineTo(x, y);
@@ -2020,7 +2102,27 @@
       ctx.setLineDash([]);
     }
 
-    setInterval(stepSimulation, 350);
+    async function runMonitorTick() {
+      monitorTimer = null;
+      const started = performance.now();
+      try {
+        await stepSimulation();
+      } finally {
+        const period = monitorRetry ? Math.max(singlePeriod, monitorPeriodMs()) : monitorPeriodMs();
+        monitorTimer = setTimeout(runMonitorTick, Math.max(0, started + period - performance.now()));
+      }
+    }
+    monitorTimer = setTimeout(runMonitorTick, singlePeriod);
+    function expireStalledPoll() {
+      if (!polling || performance.now() - lastSnapshotAt <= 5000) return;
+      if ([state.actualFreqHz, state.outputVolt, state.outputCurrentA, state.dcBusVolt,
+           state.driveState, state.direction, state.faultCode, state.targetFreqHz].some(Number.isFinite)) {
+        clearReadings();
+        resetMeasuredInterval();
+        recordScopeSample();
+      }
+    }
+    setInterval(expireStalledPoll, 1000);
 
     let batchRead = null;
     const batchButton = document.getElementById('btnReadGroupFromDrive');

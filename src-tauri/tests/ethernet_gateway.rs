@@ -12,8 +12,8 @@ fn transparent_gateway_preserves_rtu_frames_and_checks_state_before_writing() {
     let gateway = thread::spawn(move || {
         let (mut stream, _) = listener.accept().unwrap();
         stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
-        // FC03 handshake, one illegal address, then state / frequency / state and FC06.
-        let expected = [(3, 0x3000), (3, 0x100), (3, 0x2100), (3, 0x3000), (3, 0x2100), (6, 0x0300)];
+        // FC03 handshake, single-register telemetry, one illegal address, then guarded FC06.
+        let expected = [(3, 0x3000), (3, 0x3000), (3, 0x100), (3, 0x2100), (3, 0x3000), (3, 0x2100), (6, 0x0300)];
         for (fc, address) in expected {
             let mut request = [0; 8];
             stream.read_exact(&mut request).unwrap();
@@ -33,6 +33,7 @@ fn transparent_gateway_preserves_rtu_frames_and_checks_state_before_writing() {
     let status = drive.connect_ethernet("127.0.0.1", port, 7, 500).unwrap();
     assert!(status.connected && !status.simulated && !status.write_enabled);
     assert_eq!(status.ethernet_endpoint.unwrap().port(), port);
+    assert!(drive.poll_monitor(true).unwrap().scope_sample_ms.is_some());
     assert!(drive.write_register_safe_ex(0x0300, 1, None).is_err());
     assert!(drive.read_registers_ex(0x100, 1).is_err());
     assert!(drive.connected);
