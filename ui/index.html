@@ -470,17 +470,24 @@
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 class="text-sm font-bold">Осциллограмма реального времени</h3>
+                <label class="text-xs pro-text-muted" for="monitorMethod">Способ чтения</label>
+                <select id="monitorMethod" class="pro-input text-xs px-2 py-1" disabled>
+                  <option value="single">Одиночные запросы</option>
+                  <option value="block4">Блок 4 + шина DC отдельно</option>
+                  <option value="block7">Блок 7 регистров</option>
+                </select>
                 <label class="text-xs pro-text-muted" for="monitorPeriod">Период опроса</label>
                 <select id="monitorPeriod" class="pro-input text-xs px-2 py-1" disabled>
-                  <option value="350">Одиночное чтение · 350 мс</option>
-                  <option value="50">50 мс · 20 Гц</option>
-                  <option value="100">100 мс · 10 Гц</option>
-                  <option value="250">250 мс · 4 Гц</option>
-                  <option value="500">500 мс · 2 Гц</option>
-                  <option value="1000">1000 мс · 1 Гц</option>
+                  <option value="50">50 мс</option>
+                  <option value="100">100 мс</option>
+                  <option value="250">250 мс</option>
+                  <option value="350" selected>350 мс</option>
+                  <option value="500">500 мс</option>
+                  <option value="1000">1000 мс</option>
                 </select>
                 <span id="monitorInterval" class="text-xs pro-text-muted" title="Интервал между двумя успешными чтениями U00.00">По ответам ПЧ —</span>
-                <p id="monitorReadMode" class="text-xs pro-text-muted">Выбор периода доступен при подключении по Modbus TCP/IP (MBAP).</p>
+                <p id="monitorReadMode" class="text-xs pro-text-muted">Выбор доступен при подключении по Modbus TCP/IP (MBAP).</p>
+                <p id="monitorError" class="text-xs" style="color:var(--danger)" hidden></p>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-xs">
                 <span class="flex items-center gap-1.5 font-semibold pro-text-primary" title="U00.00">
@@ -1830,28 +1837,41 @@
     let telemetryMode = 'waiting';
     let polling = false;
     let lastSnapshotAt = 0;
+    const monitorMethod = document.getElementById('monitorMethod');
+    const monitorError = document.getElementById('monitorError');
     const monitorPeriod = document.getElementById('monitorPeriod');
     const monitorInterval = document.getElementById('monitorInterval');
     const monitorReadMode = document.getElementById('monitorReadMode');
     const singlePeriod = 350;
     let monitorTimer = null;
-    let monitorFallback = false;
+    let preferredMethod = 'single';
     let monitorRetry = false;
     let lastScopeSampleMs = null;
     let preferredPeriod = String(singlePeriod);
     try {
+      const method = localStorage.getItem('oni.mbapMonitorMethod');
+      if (Array.from(monitorMethod.options).some(option => option.value === method)) preferredMethod = method;
       const saved = localStorage.getItem('oni.mbapMonitorPeriod');
       if (Array.from(monitorPeriod.options).some(option => option.value === saved)) preferredPeriod = saved;
     } catch (_) {}
 
     function syncMonitorOptions() {
       const mbap = telemetryMode === 'rs485' && driveSession.active?.ethernet_protocol === 'modbus_tcp';
-      monitorPeriod.disabled = !mbap || monitorFallback;
-      monitorPeriod.value = monitorPeriod.disabled ? String(singlePeriod) : preferredPeriod;
-      if (monitorFallback) monitorReadMode.textContent = 'ПЧ отклонил блочный запрос. Одиночное чтение каждые 350 мс до переподключения.';
-      else if (!mbap) monitorReadMode.textContent = 'Выбор периода доступен при подключении по Modbus TCP/IP (MBAP).';
-      else if (Number(monitorPeriod.value) === singlePeriod) monitorReadMode.textContent = 'FC03 · по одному регистру за запрос.';
-      else monitorReadMode.textContent = 'FC03 · U00.00–U00.06 одним запросом. Диагностика раз в секунду.';
+      monitorMethod.disabled = monitorPeriod.disabled = !mbap;
+      monitorPeriod.value = mbap ? preferredPeriod : String(singlePeriod);
+      monitorMethod.value = mbap ? preferredMethod : 'single';
+      const descriptions = {
+        single: 'FC03 · по одному регистру за запрос, восемь запросов за полный обход.',
+        block4: 'FC03 · U00.00–U00.03 одним запросом, напряжение шины U00.06 отдельным. Диагностика по одному регистру.',
+        block7: 'FC03 · U00.00–U00.06 одним запросом. Диагностика по одному регистру.'
+      };
+      monitorReadMode.textContent = mbap ? descriptions[monitorMethod.value]
+        : 'Выбор доступен при подключении по Modbus TCP/IP (MBAP).';
+    }
+
+    function displayMonitorError(message) {
+      monitorError.textContent = message ? 'Последняя ошибка опроса · ' + message : '';
+      monitorError.hidden = !message;
     }
 
     function monitorPeriodMs() {
@@ -1874,9 +1894,15 @@
       lastScopeSampleMs = stamp;
     }
 
-    monitorPeriod.addEventListener('change', () => {
+    function changeMonitorSettings() {
+      preferredMethod = monitorMethod.value;
       preferredPeriod = monitorPeriod.value;
-      try { localStorage.setItem('oni.mbapMonitorPeriod', preferredPeriod); } catch (_) {}
+      try {
+        localStorage.setItem('oni.mbapMonitorMethod', preferredMethod);
+        localStorage.setItem('oni.mbapMonitorPeriod', preferredPeriod);
+      } catch (_) {}
+      monitorRetry = false;
+      displayMonitorError(null);
       telemetryEpoch++;
       resetMeasuredInterval();
       syncMonitorOptions();
@@ -1884,7 +1910,9 @@
         clearTimeout(monitorTimer);
         monitorTimer = setTimeout(runMonitorTick, monitorPeriodMs());
       }
-    });
+    }
+    monitorMethod.addEventListener('change', changeMonitorSettings);
+    monitorPeriod.addEventListener('change', changeMonitorSettings);
 
     function renderReadings() {
       for (const [id, value, digits, rawScale, rawOverride] of [
@@ -1914,7 +1942,7 @@
     function selectTelemetryMode(mode) {
       telemetryMode = mode;
       telemetryEpoch++;
-      monitorFallback = false;
+      displayMonitorError(null);
       monitorRetry = false;
       lastSnapshotAt = performance.now();
       resetMeasuredInterval();
@@ -1944,26 +1972,23 @@
           return;
         }
         const epoch = telemetryEpoch;
-        const grouped = monitorPeriodMs() !== singlePeriod;
+        const readMode = document.getElementById('tab-dashboard').classList.contains('hidden') ? 'single' : monitorMethod.value;
+        const periodMs = monitorPeriodMs();
         polling = true;
         try {
           const session = driveSession.active;
-          const tel = await driveSession.request(session, 'poll_drive_telemetry', { grouped });
+          const tel = await driveSession.request(session, 'poll_drive_telemetry', { readMode, periodMs });
           if (epoch !== telemetryEpoch) return;
           if (!tel || tel.simulated) {
             selectTelemetryMode('waiting');
             return;
           }
           lastSnapshotAt = performance.now();
-          monitorRetry = !tel.connected || !!tel.last_error;
-          if (tel.monitor_fallback && !monitorFallback) {
-            monitorFallback = true;
-            resetMeasuredInterval();
-            syncMonitorOptions();
-          }
+          monitorRetry = !tel.connected || (tel.last_error && !Number.isFinite(tel.scope_sample_ms));
+          if (tel.last_error) displayMonitorError(tel.last_error);
           if (tel.connected && Number.isFinite(tel.output_freq_hz)) updateMeasuredInterval(tel.scope_sample_ms);
           else resetMeasuredInterval();
-          appendSample = !grouped || Number.isFinite(tel.scope_sample_ms) || !Number.isFinite(tel.output_freq_hz);
+          appendSample = readMode === 'single' || Number.isFinite(tel.scope_sample_ms) || !Number.isFinite(tel.output_freq_hz);
           if (tel.connected) {
             state.driveState = tel.state_code ?? null;
             state.direction = outputDirection(tel.status_bits);
@@ -1987,6 +2012,7 @@
           if (epoch !== telemetryEpoch) return;
           clearReadings();
           monitorRetry = true;
+          displayMonitorError(String(err));
           resetMeasuredInterval();
           updateConnectionIndicators({simulated: false, connected: false,
             port_name: driveSession.active?.port_name || '—', ethernet_endpoint: driveSession.active?.ethernet_endpoint, ethernet_protocol: driveSession.active?.ethernet_protocol, last_error: String(err)});

@@ -9,7 +9,7 @@ use a650_core::actor::DriveSession;
 #[cfg(feature = "gui")]
 mod gui_app {
     use a650_core::actor::{
-        enumerate_ports, ConnectionStatusDto, DriveSession, DriveTelemetryDto, EthernetProtocol,
+        enumerate_ports, ConnectionStatusDto, DriveSession, DriveTelemetryDto, EthernetProtocol, MonitorReadMode,
         RegisterExchangeResultDto, SerialPortInfoDto, SharedDriveState,
     };
     use a650_core::addresses::parameter_addresses;
@@ -99,10 +99,15 @@ mod gui_app {
         state: tauri::State<'_, SharedDriveState>,
         session_id: u64,
         grouped: Option<bool>,
+        read_mode: Option<MonitorReadMode>,
+        period_ms: Option<u64>,
     ) -> Result<DriveTelemetryDto, String> {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
         sess.require_session(session_id)?;
-        sess.poll_monitor(grouped.unwrap_or(false))
+        let mode = read_mode.unwrap_or_else(|| {
+            if grouped == Some(true) { MonitorReadMode::Block7 } else { MonitorReadMode::Single }
+        });
+        sess.poll_monitor_mode(mode, period_ms.unwrap_or(350))
     }
 
     #[tauri::command]

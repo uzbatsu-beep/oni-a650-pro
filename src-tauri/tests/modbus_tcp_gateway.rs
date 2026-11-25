@@ -1,4 +1,4 @@
-use a650_core::actor::{DriveSession, EthernetProtocol};
+use a650_core::actor::{DriveSession, EthernetProtocol, MonitorReadMode};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
@@ -28,6 +28,7 @@ fn gateway(run: impl FnOnce(TcpStream) + Send + 'static) -> (u16, thread::JoinHa
     let port = listener.local_addr().unwrap().port();
     let task = thread::spawn(move || {
         let (stream, _) = listener.accept().unwrap();
+        stream.set_nodelay(true).unwrap();
         stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
         run(stream);
     });
@@ -112,8 +113,8 @@ fn grouped_monitor_updates_all_scope_channels_from_one_mbap_reply() {
     let (port, task) = gateway(|mut stream| {
         request(&mut stream, 1, 3, 0x3000, 1);
         reply(&mut stream, 1, &[1, 3, 2, 0, 0]);
-        request(&mut stream, 2, 3, 0x2100, 3);
-        reply(&mut stream, 2, &[1, 3, 6, 0, 1, 0, 2, 0, 0]);
+        request(&mut stream, 2, 3, 0x2100, 1);
+        reply(&mut stream, 2, &[1, 3, 2, 0, 1]);
         for id in [3, 4] {
             request(&mut stream, id, 3, 0x3000, 7);
             reply(&mut stream, id, &[1, 3, 14, 0xec, 0x78, 0x13, 0x88, 1, 124, 0, 42, 0, 0, 0, 0, 2, 32]);
@@ -128,34 +129,65 @@ fn grouped_monitor_updates_all_scope_channels_from_one_mbap_reply() {
     assert_eq!(first.dc_bus_volt, Some(544));
     assert_eq!(first.output_current_a, Some(4.2));
     assert_eq!(first.state_code, Some(1));
-    assert_eq!(first.status_bits, Some(2));
-    assert_eq!(first.fault_code, Some(0));
+    assert_eq!(first.status_bits, None);
+    assert_eq!(first.fault_code, None);
     let second = drive.poll_monitor(true).unwrap();
     assert!(second.scope_sample_ms.unwrap() > first.scope_sample_ms.unwrap());
-    assert!(!second.monitor_fallback && !second.write_enabled);
+    assert!(!second.write_enabled);
     task.join().unwrap();
 }
 
 #[test]
-fn unsupported_mbap_block_falls_back_to_single_reads_for_the_session() {
+fn rejected_block_can_be_changed_to_split_single_and_back_without_reconnect() {
+    use MonitorReadMode::{Block4, Block7, Single};
+    let (port, task) = gateway(|mut stream| {
+        for (tid, address, count, body) in [
+            (1, 0x3000, 1, &[1, 3, 2, 0, 0][..]),
+            (2, 0x2100, 1, &[1, 0x83, 2]),
+            (3, 0x3000, 7, &[1, 0x83, 3]),
+            (4, 0x3000, 4, &[1, 3, 8, 0, 100, 0, 100, 1, 124, 0, 42]),
+            (5, 0x3006, 1, &[1, 3, 2, 2, 32]),
+            (6, 0x3000, 1, &[1, 3, 2, 0, 200]),
+            (7, 0x3000, 7, &[1, 3, 14, 0, 200, 0, 200, 1, 124, 0, 42, 0, 0, 0, 0, 2, 32]),
+        ] {
+            request(&mut stream, tid, 3, address, count);
+            reply(&mut stream, tid, body);
+        }
+    });
+    let mut drive = DriveSession::default();
+    let session = drive.connect_ethernet_with_protocol("127.0.0.1", port, 1, 1000, EthernetProtocol::ModbusTcp).unwrap();
+    let rejected = drive.poll_monitor_mode(Block7, 100).unwrap();
+    assert!(rejected.connected && rejected.scope_sample_ms.is_none());
+    let error = rejected.last_error.unwrap();
+    assert!(error.contains("0x3000") && error.contains("регистров 7") && error.contains("0x03"));
+    let split = drive.poll_monitor_mode(Block4, 100).unwrap();
+    assert_eq!(split.output_freq_hz, Some(1.0));
+    assert_eq!(split.output_current_a, Some(4.2));
+    assert_eq!(split.dc_bus_volt, Some(544));
+    assert!(split.scope_sample_ms.is_some());
+    let single = drive.poll_monitor_mode(Single, 100).unwrap();
+    assert_eq!(single.output_freq_hz, Some(2.0));
+    assert!(drive.poll_monitor_mode(Block7, 350).unwrap().scope_sample_ms.is_some());
+    assert!(drive.require_session(session.session_id).is_ok());
+    task.join().unwrap();
+}
+
+#[test]
+fn rejected_diagnostic_preserves_the_successful_scope_reply_and_failed_address() {
     let (port, task) = gateway(|mut stream| {
         request(&mut stream, 1, 3, 0x3000, 1);
         reply(&mut stream, 1, &[1, 3, 2, 0, 0]);
-        request(&mut stream, 2, 3, 0x2100, 3);
+        request(&mut stream, 2, 3, 0x2100, 1);
         reply(&mut stream, 2, &[1, 0x83, 2]);
-        request(&mut stream, 3, 3, 0x3000, 1);
-        reply(&mut stream, 3, &[1, 3, 2, 0, 0]);
-        request(&mut stream, 4, 3, 0x2100, 1);
-        reply(&mut stream, 4, &[1, 3, 2, 0, 4]);
+        request(&mut stream, 3, 3, 0x3000, 7);
+        reply(&mut stream, 3, &[1, 3, 14, 0, 0, 0x13, 0x88, 0, 0, 0, 0, 0, 0, 0, 0, 2, 32]);
     });
     let mut drive = DriveSession::default();
     drive.connect_ethernet_with_protocol("127.0.0.1", port, 1, 1000, EthernetProtocol::ModbusTcp).unwrap();
-    let rejected = drive.poll_monitor(true).unwrap();
-    assert!(rejected.connected && rejected.monitor_fallback);
-    assert!(rejected.scope_sample_ms.is_none());
-    assert!(drive.poll_monitor(true).unwrap().scope_sample_ms.is_some());
-    let next = drive.poll_monitor(true).unwrap();
-    assert_eq!(next.state_code, Some(4));
-    assert!(next.scope_sample_ms.is_none());
+    let sample = drive.poll_monitor_mode(MonitorReadMode::Block7, 50).unwrap();
+    assert_eq!(sample.dc_bus_volt, Some(544));
+    assert!(sample.scope_sample_ms.is_some());
+    let error = sample.last_error.unwrap();
+    assert!(error.contains("0x2100") && error.contains("регистров 1") && error.contains("0x02"));
     task.join().unwrap();
 }
