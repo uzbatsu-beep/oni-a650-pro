@@ -224,6 +224,10 @@ impl Default for DriveSession {
             }
         }
         let mut sim_regs = HashMap::new();
+        // These three frequency settings are interdependent (0.01 Hz per word).
+        sim_regs.insert(0x0108, 5000); // F01.08 maximum frequency
+        sim_regs.insert(0x4002, 5000); // H00.02 pump start threshold
+        sim_regs.insert(0x4003, 500);  // H00.03 pump stop threshold
         sim_regs.insert(0x2100, 4);    // Stopped
         sim_regs.insert(0x2101, 0);    // Forward
         sim_regs.insert(0x2102, 0);    // No fault
@@ -632,7 +636,8 @@ impl DriveSession {
         let pair = parameter_addresses(&self.parameters[index].param_id).map_err(|e| e.to_string())?;
         let eeprom = pair.eeprom.ok_or("Адрес EEPROM отсутствует.")?;
         let raw = self.read_registers_ex(pair.ram, 1)?.values[0];
-        validate_parameter_value(&self.parameters[index], raw).map_err(|e| e.to_string())?;
+        let parameter = self.parameter_with_live_limits(index)?;
+        validate_parameter_value(&parameter, raw).map_err(|e| e.to_string())?;
         let item = EepromItem { code: code.to_owned(), ram: pair.ram, eeprom, raw };
         self.pending_eeprom.insert(code.to_owned(), item.clone());
         Ok(item)
@@ -658,22 +663,47 @@ impl DriveSession {
         Ok(result)
     }
 
+    /// Resolve only the named pump-frequency references in the A650M catalog.
+    /// Other symbolic limits are still rejected by validate_parameter_value.
+    fn parameter_with_live_limits(&mut self, index: usize) -> Result<ParameterRecord, String> {
+        let mut parameter = self.parameters[index].clone();
+        if matches!(parameter.param_id.as_str(), "H00.02" | "H00.03") {
+            for bound in [&mut parameter.min_value, &mut parameter.max_value] {
+                if matches!(bound.as_str(), "H00.02" | "H00.03" | "F01.08") {
+                    let address = parameter_addresses(bound).map_err(|e| e.to_string())?.ram;
+                    let raw = self.read_registers_ex(address, 1)
+                        .map_err(|e| format!("Не удалось прочитать предел {bound}: {e}"))?.values[0];
+                    // All three referenced registers contain unsigned hundredths of a Hz.
+                    *bound = (f64::from(raw) / 100.0).to_string();
+                }
+            }
+        }
+        Ok(parameter)
+    }
+
     fn authorize_ram_write(&mut self, address: u16, value: u16) -> Result<(), String> {
         // Reject forbidden writes before any physical bus I/O.
         if let Err(err) = self.guard.check_address(self.slave_id, address) {
             return self.reject_write(address, value, err.to_string());
         }
 
-        // FC03 state query MUST occur immediately before FC06 within the same
-        // locked DriveSession. Never use simulator cache for physical writes.
+        if !self.simulated && !self.connected {
+            self.guard.read_only = true;
+            return self.reject_write(address, value,
+                "FC06 denied: physical connection not verified; SafetyGuard re-locked".to_string());
+        }
+
+        let index = self.parameters.iter().position(|p| p.access == "RW"
+            && parameter_addresses(&p.param_id).ok().map(|a| a.ram) == Some(address));
+        let parameter = match index.map(|i| self.parameter_with_live_limits(i)).transpose() {
+            Ok(parameter) => parameter,
+            Err(error) => return self.reject_write(address, value, error),
+        };
+
+        // Read the state after all live bounds and immediately before FC06 in the locked session.
         let fresh_state = if self.simulated {
             self.sim_regs.get(&0x2100).copied()
         } else {
-            if !self.connected {
-                self.guard.read_only = true;
-                return self.reject_write(address, value,
-                    "FC06 denied: physical connection not verified; SafetyGuard re-locked".to_string());
-            }
             match self.read_registers_ex(0x2100, 1) {
                 Ok(result) => result.values.first().copied(),
                 Err(err) => {
@@ -703,10 +733,7 @@ impl DriveSession {
             }
         }
 
-        let parameter = self.parameters.iter().find(|p| {
-            p.access == "RW" && parameter_addresses(&p.param_id).ok().map(|a| a.ram) == Some(address)
-        });
-        if let Err(err) = self.guard.check_write_with_frequency(self.slave_id, address, value, verified_state, parameter, setup_frequency) {
+        if let Err(err) = self.guard.check_write_with_frequency(self.slave_id, address, value, verified_state, parameter.as_ref(), setup_frequency) {
             return self.reject_write(address, value, err.to_string());
         }
 

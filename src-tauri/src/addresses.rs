@@ -1,7 +1,8 @@
 //! ONI A650 / A650M Modbus RTU register address arithmetic (`F00..F20`, `H00`, `U00..U01`).
 //!
-//! Matches `ONI_A650M_Manual.pdf` (Edition 3, Appendix A.4.3, p. 158) and `ONI_A650_Manual_Ext.pdf`,
-//! and provides normalization for legacy `OniDriveStudio v1.2.7.0` EXE catalog defects:
+//! F and U addresses follow ONI A650M Manual, Edition 3, Appendix A.4.3.
+//! H00 RAM/EEPROM pairs are recorded in the A650M OniDriveStudio table.
+//! This module also provides normalization for legacy `OniDriveStudio v1.2.7.0` EXE catalog defects:
 //! - Duplicate code `F17.28` at `0x111D` -> `F17.29`;
 //! - Motor 2 group `F18.08..F18.30` off-by-two (`-2`) address shift in legacy `.ods` profiles.
 
