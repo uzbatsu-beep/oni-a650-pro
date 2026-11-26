@@ -191,3 +191,84 @@ fn rejected_diagnostic_preserves_the_successful_scope_reply_and_failed_address()
     assert!(error.contains("0x2100") && error.contains("регистров 1") && error.contains("0x02"));
     task.join().unwrap();
 }
+
+#[test]
+fn eeprom_save_reads_live_ram_and_writes_only_the_approved_mirror() {
+    let (port, task) = gateway(|mut s| {
+        for (tid, address, value) in [
+            (1, 0x3000, 0u16), // connect
+            (2, 0x0300, 150),  // operator preview
+            (3, 0x0300, 150),  // confirm RAM still matches preview
+            (4, 0x2100, 4),    // fresh stop state
+        ] {
+            request(&mut s, tid, 3, address, 1);
+            let [hi, lo] = value.to_be_bytes();
+            reply(&mut s, tid, &[1, 3, 2, hi, lo]);
+        }
+        request(&mut s, 5, 6, 0x8300, 150);
+        reply(&mut s, 5, &[1, 6, 0x83, 0, 0, 150]);
+    });
+    let mut drive = DriveSession::default();
+    drive.connect_ethernet_with_protocol("127.0.0.1", port, 1, 1000, EthernetProtocol::ModbusTcp).unwrap();
+    assert_eq!(drive.stage_eeprom_parameter("F03.00").unwrap().raw, 150);
+    assert!(drive.persist_eeprom_parameter("F03.00", 150).is_err()); // read-only
+    drive.guard.read_only = false;
+    assert!(drive.write_register_safe_ex(0x8300, 150, None).is_err());
+    assert!(drive.persist_eeprom_parameter("F03.00", 151).is_err());
+    let result = drive.persist_eeprom_parameter("F03.00", 150).unwrap();
+    assert_eq!(result.tx_hex, result.rx_hex);
+    assert!(drive.eeprom_preview().pending.is_empty());
+    assert!(drive.persist_eeprom_parameter("F03.00", 150).is_err());
+    task.join().unwrap();
+}
+
+#[test]
+fn eeprom_queue_is_per_drive_and_excludes_commands_unverified_groups_and_unconfirmed_values() {
+    let mut drive = DriveSession::default();
+    drive.simulated = true;
+    drive.guard.read_only = false;
+    for code in ["F00.04", "F00.05", "F08.30", "F18.30", "F00.20", "H00.01", "U00.00", "0x2000", "💾"] {
+        assert!(drive.stage_eeprom_parameter(code).is_err(), "{code}");
+    }
+    assert_eq!(drive.tx_count, 0);
+    drive.write_register_safe_ex(0x0300, 150, None).unwrap();
+    assert_eq!(drive.eeprom_preview().pending[0].raw, 150);
+    assert!(!drive.sim_regs.contains_key(&0x8300));
+    drive.sim_regs.insert(0x0300, 155); // Edited on the local keypad after preview
+    assert!(drive.persist_eeprom_parameter("F03.00", 150).is_err());
+    assert!(drive.eeprom_preview().pending.is_empty());
+    assert!(!drive.sim_regs.contains_key(&0x8300));
+    drive.stage_eeprom_parameter("F03.00").unwrap();
+    drive.sim_regs.insert(0x2100, 1);
+    assert!(drive.persist_eeprom_parameter("F03.00", 155).is_err());
+    assert!(!drive.sim_regs.contains_key(&0x8300));
+    drive.sim_regs.insert(0x2100, 4);
+    drive.persist_eeprom_parameter("F03.00", 155).unwrap();
+    assert_eq!(drive.sim_regs[&0x8300], 155);
+    drive.stage_eeprom_parameter("F03.01").unwrap();
+    drive.disconnect();
+    assert!(drive.eeprom_preview().pending.is_empty());
+}
+
+#[test]
+fn lost_eeprom_echo_stops_without_an_automatic_repeat() {
+    let (port, task) = gateway(|mut s| {
+        for (tid, address, value) in [(1, 0x3000, 0), (2, 0x0300, 150), (3, 0x0300, 150), (4, 0x2100, 4)] {
+            request(&mut s, tid, 3, address, 1);
+            reply(&mut s, tid, &[1, 3, 2, 0, value]);
+        }
+        request(&mut s, 5, 6, 0x8300, 150);
+        s.shutdown(std::net::Shutdown::Write).unwrap();
+        assert_eq!(s.read(&mut [0; 1]).unwrap(), 0);
+    });
+    let mut drive = DriveSession::default();
+    drive.connect_ethernet_with_protocol("127.0.0.1", port, 1, 1000, EthernetProtocol::ModbusTcp).unwrap();
+    drive.stage_eeprom_parameter("F03.00").unwrap();
+    drive.guard.read_only = false;
+    assert!(drive.persist_eeprom_parameter("F03.00", 150).unwrap_err().contains("outcome unknown"));
+    assert!(drive.guard.read_only && !drive.connected);
+    let sent = drive.tx_count;
+    assert!(drive.persist_eeprom_parameter("F03.00", 150).is_err());
+    assert_eq!(drive.tx_count, sent);
+    task.join().unwrap();
+}

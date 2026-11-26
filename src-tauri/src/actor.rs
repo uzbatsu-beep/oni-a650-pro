@@ -7,10 +7,10 @@ use crate::modbus::{
     crc16_modbus, format_hex, parse_read_body, parse_read_response, parse_write_body, parse_write_response, ReadRegistersRequest,
     WriteRegisterRequest,
 };
-use crate::safety::{AuditLogEntry, SafetyError, SafetyGuard};
+use crate::safety::{persistent_setting, validate_parameter_value, AuditLogEntry, SafetyError, SafetyGuard};
 use serde::{Deserialize, Serialize};
 use serialport::{ClearBuffer, DataBits, Parity, SerialPort, SerialPortType, StopBits};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::sync::Mutex;
@@ -159,7 +159,22 @@ fn exchange_modbus_tcp(stream: &mut TcpStream, request: &[u8], timeout: Duration
     Ok(frame)
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct EepromItem {
+    pub code: String,
+    pub ram: u16,
+    pub eeprom: u16,
+    pub raw: u16,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EepromPreview {
+    pub pending: Vec<EepromItem>,
+    pub available: Vec<String>,
+}
+
 pub struct DriveSession {
+    pending_eeprom: BTreeMap<String, EepromItem>,
     session_id: u64,
     next_transaction_id: u16,
     ethernet_protocol: EthernetProtocol,
@@ -250,6 +265,7 @@ impl Default for DriveSession {
             link: None,
             measured: HashMap::new(),
             guard,
+            pending_eeprom: BTreeMap::new(),
             sim_regs,
             audit_log: Vec::new(),
             parameters,
@@ -344,6 +360,7 @@ impl DriveSession {
 
     fn reset_measurements(&mut self) {
         self.session_id += 1;
+        self.pending_eeprom.clear();
         // Connection changes always revoke the operator's write unlock.
         self.guard.read_only = true;
         self.measured.clear();
@@ -572,7 +589,7 @@ impl DriveSession {
         Ok(res.tx_hex)
     }
 
-    fn reject_write(&mut self, address: u16, value: u16, reason: String) -> Result<RegisterExchangeResultDto, String> {
+    fn reject_write<T>(&mut self, address: u16, value: u16, reason: String) -> Result<T, String> {
         self.record_audit("write_rejected", serde_json::json!({
             "address": format!("0x{:04X}", address),
             "raw_value": value,
@@ -588,6 +605,60 @@ impl DriveSession {
         value: u16,
         _stop_only_code: Option<&str>, // Legacy UI hint is never trusted.
     ) -> Result<RegisterExchangeResultDto, String> {
+        self.authorize_ram_write(address, value)?;
+        let result = self.exchange_fc06(address, value)?;
+        if let Some(item) = self.parameters.iter().filter(|p| persistent_setting(p)).find_map(|p| {
+            let pair = parameter_addresses(&p.param_id).ok()?;
+            if pair.ram != address { return None; }
+            Some(EepromItem { code: p.param_id.clone(), ram: address, eeprom: pair.eeprom?, raw: value })
+        }) {
+            self.pending_eeprom.insert(item.code.clone(), item);
+        }
+        Ok(result)
+    }
+
+    pub fn eeprom_preview(&self) -> EepromPreview {
+        EepromPreview {
+            pending: self.pending_eeprom.values().cloned().collect(),
+            available: self.parameters.iter().filter(|p| persistent_setting(p))
+                .map(|p| p.param_id.clone()).collect(),
+        }
+    }
+
+    pub fn stage_eeprom_parameter(&mut self, code: &str) -> Result<EepromItem, String> {
+        if !self.simulated && !self.connected { return Err("Подключите ПЧ.".into()); }
+        let index = self.parameters.iter().position(|p| p.param_id == code && persistent_setting(p))
+            .ok_or("Для этого параметра сохранение EEPROM недоступно.")?;
+        let pair = parameter_addresses(&self.parameters[index].param_id).map_err(|e| e.to_string())?;
+        let eeprom = pair.eeprom.ok_or("Адрес EEPROM отсутствует.")?;
+        let raw = self.read_registers_ex(pair.ram, 1)?.values[0];
+        validate_parameter_value(&self.parameters[index], raw).map_err(|e| e.to_string())?;
+        let item = EepromItem { code: code.to_owned(), ram: pair.ram, eeprom, raw };
+        self.pending_eeprom.insert(code.to_owned(), item.clone());
+        Ok(item)
+    }
+
+    /// Only a value previewed in this session can reach a catalog-derived EEPROM address.
+    pub fn persist_eeprom_parameter(&mut self, code: &str, expected_raw: u16) -> Result<RegisterExchangeResultDto, String> {
+        let item = self.pending_eeprom.get(code).cloned().ok_or("Сначала прочитайте параметр в список сохранения.")?;
+        if item.raw != expected_raw { return Err("Предпросмотр устарел. Обновите список.".into()); }
+        self.guard.check_address(self.slave_id, item.ram).map_err(|e| e.to_string())?;
+        if !self.simulated && !self.connected { return Err("Подключите ПЧ.".into()); }
+        let raw = self.read_registers_ex(item.ram, 1)?.values[0];
+        if raw != item.raw {
+            self.pending_eeprom.remove(code);
+            return Err(format!("{code}: RAM изменилась. Повторно добавьте параметр и подтвердите новое значение."));
+        }
+        self.authorize_ram_write(item.ram, raw)?;
+        let result = self.exchange_fc06(item.eeprom, raw)?;
+        self.pending_eeprom.remove(code);
+        self.record_audit("persist_eeprom_parameter", serde_json::json!({
+            "parameter": code, "ram": item.ram, "eeprom": item.eeprom, "raw": raw, "simulated": self.simulated,
+        }));
+        Ok(result)
+    }
+
+    fn authorize_ram_write(&mut self, address: u16, value: u16) -> Result<(), String> {
         // Reject forbidden writes before any physical bus I/O.
         if let Err(err) = self.guard.check_address(self.slave_id, address) {
             return self.reject_write(address, value, err.to_string());
@@ -639,6 +710,10 @@ impl DriveSession {
             return self.reject_write(address, value, err.to_string());
         }
 
+        Ok(())
+    }
+
+    fn exchange_fc06(&mut self, address: u16, value: u16) -> Result<RegisterExchangeResultDto, String> {
         let req = WriteRegisterRequest::new(self.slave_id, address, value)
             .map_err(|e| e.to_string())?;
         let tx_bytes = self.wire_request(req.to_bytes());

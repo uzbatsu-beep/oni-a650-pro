@@ -9,7 +9,7 @@ use a650_core::actor::DriveSession;
 #[cfg(feature = "gui")]
 mod gui_app {
     use a650_core::actor::{
-        enumerate_ports, ConnectionStatusDto, DriveSession, DriveTelemetryDto, EthernetProtocol, MonitorReadMode,
+        enumerate_ports, ConnectionStatusDto, EepromItem, EepromPreview, DriveSession, DriveTelemetryDto, EthernetProtocol, MonitorReadMode,
         RegisterExchangeResultDto, SerialPortInfoDto, SharedDriveState,
     };
     use a650_core::addresses::parameter_addresses;
@@ -149,6 +149,27 @@ mod gui_app {
     }
 
     #[tauri::command]
+    pub fn eeprom_preview(state: tauri::State<'_, SharedDriveState>, session_id: u64) -> Result<EepromPreview, String> {
+        let sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
+        Ok(sess.eeprom_preview())
+    }
+
+    #[tauri::command]
+    pub async fn stage_eeprom_parameter(state: tauri::State<'_, SharedDriveState>, session_id: u64, code: String) -> Result<EepromItem, String> {
+        let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
+        sess.stage_eeprom_parameter(&code)
+    }
+
+    #[tauri::command]
+    pub async fn persist_eeprom_parameter(state: tauri::State<'_, SharedDriveState>, session_id: u64, code: String, expected_raw: u16) -> Result<RegisterExchangeResultDto, String> {
+        let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
+        sess.persist_eeprom_parameter(&code, expected_raw)
+    }
+
+    #[tauri::command]
     pub fn read_registers_fc03(
         state: tauri::State<'_, SharedDriveState>,
         session_id: u64,
@@ -205,6 +226,9 @@ mod gui_app {
                 poll_drive_telemetry,
                 set_safety_allow_write,
                 write_register_fc06,
+                eeprom_preview,
+                stage_eeprom_parameter,
+                persist_eeprom_parameter,
                 read_registers_fc03,
                 calc_parameter_addresses,
                 save_export_file,
