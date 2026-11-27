@@ -229,21 +229,18 @@
     .terminal-pin { transition: all 0.18s ease; cursor: pointer; }
     .terminal-pin:hover { filter: brightness(1.22); transform: translateY(-1px); }
     .brand-logo { width: 45px; height: 33px; object-fit: contain; padding: 4px; background: #fff; border-radius: 5px; }
-    .brand-help { margin-left: auto; flex: 0 0 28px; height: 28px; border-radius: 50%; font-size: 15px; font-weight: 700; }
     .workspace-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
     .header-context, .appearance-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     .appearance-controls { justify-content: flex-end; }
     .housing-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .housing-choices button { padding: 8px 12px; font-weight: 600; }
     .housing-choices button[aria-pressed="true"] { border-color: var(--primary); box-shadow: inset 0 -3px var(--primary); background: var(--primary-trans); }
-    .about-dialog { margin: auto; width: min(420px, calc(100vw - 32px)); padding: 24px; color: var(--text-main); }
-    .about-dialog::backdrop { background: rgba(0, 0, 0, .56); }
-    #eepromDialog { width: min(620px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; }
+    #eepromDialog::backdrop { background: rgba(0, 0, 0, .56); }
+    #eepromDialog { margin: auto; width: min(620px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; padding: 24px; color: var(--text-main); }
     #eepromRows { max-height: 36vh; overflow-y: auto; }
     #eepromRows label { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); }
     #eepromRows small { display: block; color: var(--text-muted); }
     #eepromDialog button:disabled { opacity: .55; cursor: default; }
-    .about-dialog a { color: var(--text-main); text-decoration: underline; text-underline-offset: 3px; }
     @media (max-width: 700px) {
       .workspace-header { grid-template-columns: 1fr; }
       .appearance-controls { justify-content: flex-start; }
@@ -262,7 +259,6 @@
             <h1 class="text-lg font-bold leading-tight pro-text-primary">ONI A650M PRO</h1>
             <p class="text-[11px] pro-text-muted">Инженерная консоль 2.0</p>
           </div>
-          <button id="aboutOpen" type="button" class="brand-help pro-btn-outline" aria-label="О программе" aria-haspopup="dialog" title="О программе">?</button>
         </div>
       </div>
 
@@ -1105,7 +1101,7 @@
     </main>
   </div>
 
-  <dialog id="eepromDialog" class="about-dialog pro-card" aria-labelledby="eepromTitle">
+  <dialog id="eepromDialog" class="pro-card" aria-labelledby="eepromTitle">
     <div class="space-y-3">
       <h2 id="eepromTitle" class="text-base font-bold">Сохранение RAM в EEPROM</h2>
       <p id="eepromDevice" class="text-xs mono"></p>
@@ -1123,15 +1119,6 @@
         <button id="eepromClose" type="button" class="pro-btn-outline px-3 py-1.5 text-xs">Закрыть</button>
         <button id="eepromSave" type="button" class="pro-btn-primary px-3 py-1.5 text-xs" disabled>Записать выбранные</button>
       </div>
-    </div>
-  </dialog>
-  <dialog id="aboutDialog" class="about-dialog pro-card" aria-labelledby="aboutTitle">
-    <h2 id="aboutTitle" class="text-lg font-bold">О программе</h2>
-    <p class="mt-2 text-sm">ONI A650M PRO · 0.2.0-preview.7 · ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
-    <p class="mt-2 text-sm">Выберите COM-порт для работы по RS-485 (Modbus RTU) или откройте симулятор. При запуске включён режим «Только чтение».</p>
-    <div class="flex items-center justify-between gap-3 mt-4 text-sm">
-      <a id="projectLink" href="https://github.com/uzbatsu-beep/oni-a650-pro" target="_blank" rel="noopener noreferrer">Проект и README на GitHub</a>
-      <form method="dialog"><button class="pro-btn-outline px-3 py-1.5" autofocus>Закрыть</button></form>
     </div>
   </dialog>
   <script src="drive-diagnostics.js"></script>
@@ -1498,20 +1485,6 @@
         hdr.parentElement.classList.toggle('active');
       });
     });
-
-    const aboutDialog = document.getElementById('aboutDialog');
-    document.getElementById('aboutOpen').addEventListener('click', () => aboutDialog.showModal());
-    if (TAURI_INVOKE) {
-      document.getElementById('projectLink').addEventListener('click', async event => {
-        event.preventDefault();
-        try {
-          await TAURI_INVOKE('open_project_repository');
-        } catch (err) {
-          showToast(`Не удалось открыть GitHub: ${err}`, 'error');
-          aboutDialog.close();
-        }
-      });
-    }
 
     document.querySelectorAll('[data-housing]').forEach(button => {
       button.addEventListener('click', () => {

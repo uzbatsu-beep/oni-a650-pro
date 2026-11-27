@@ -1,10 +1,8 @@
 [package]
 name = "oni-a650-pro"
-version = "0.2.0-preview.7"
+version = "0.2.0-preview.8"
 description = "ONI A650 / A650M Engineering Configurator PRO 2.0 (Rust + Tauri v2)"
-authors = ["Ted Koch <uzbatsu-beep>"]
 license = "MIT"
-repository = "https://github.com/uzbatsu-beep/oni-a650-pro"
 edition = "2021"
 rust-version = "1.77"
 
