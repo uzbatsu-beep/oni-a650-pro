@@ -22,6 +22,14 @@ const RESTRICTED_PARAMETERS: &[&str] = &[
     "F00.24", // Dealer password
 ];
 
+/// F addresses follow Appendix A.4.3, H00 pairs follow the A650M Studio table. Command
+/// parameters cannot be replayed as settings (including motor autotuning).
+pub(crate) fn persistent_setting(p: &ParameterRecord) -> bool {
+    p.access == "RW" && (p.param_id.starts_with('F') || p.param_id.starts_with("H00."))
+        && !RESTRICTED_PARAMETERS.contains(&p.param_id.as_str())
+        && !matches!(p.param_id.as_str(), "F08.30" | "F18.30")
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum SafetyError {
     #[error("Write denied by SafetyGuard: configurator is in Read-Only mode")]

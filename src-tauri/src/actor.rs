@@ -7,10 +7,10 @@ use crate::modbus::{
     crc16_modbus, format_hex, parse_read_body, parse_read_response, parse_write_body, parse_write_response, ReadRegistersRequest,
     WriteRegisterRequest,
 };
-use crate::safety::{AuditLogEntry, SafetyError, SafetyGuard};
+use crate::safety::{persistent_setting, validate_parameter_value, AuditLogEntry, SafetyError, SafetyGuard};
 use serde::{Deserialize, Serialize};
 use serialport::{ClearBuffer, DataBits, Parity, SerialPort, SerialPortType, StopBits};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::sync::Mutex;
@@ -47,6 +47,8 @@ pub struct ConnectionStatusDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DriveTelemetryDto {
+    /// Monotonic time of a fresh U00.00 reply received in this monitor call.
+    pub scope_sample_ms: Option<u64>,
     pub connected: bool,
     pub simulated: bool,
     pub write_enabled: bool,
@@ -107,6 +109,15 @@ pub enum EthernetProtocol {
     ModbusTcp,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MonitorReadMode {
+    #[default]
+    Single,
+    Block4,
+    Block7,
+}
+
 enum DriveLink {
     Serial(Box<dyn SerialPort>),
     Ethernet(TcpStream, EthernetProtocol),
@@ -148,7 +159,22 @@ fn exchange_modbus_tcp(stream: &mut TcpStream, request: &[u8], timeout: Duration
     Ok(frame)
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct EepromItem {
+    pub code: String,
+    pub ram: u16,
+    pub eeprom: u16,
+    pub raw: u16,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EepromPreview {
+    pub pending: Vec<EepromItem>,
+    pub available: Vec<String>,
+}
+
 pub struct DriveSession {
+    pending_eeprom: BTreeMap<String, EepromItem>,
     session_id: u64,
     next_transaction_id: u16,
     ethernet_protocol: EthernetProtocol,
@@ -169,6 +195,10 @@ pub struct DriveSession {
     pub last_rx_hex: String,
     pub last_error: Option<String>,
     pub poll_step_idx: usize,
+    monitor_origin: Instant,
+    last_monitor_diagnostics: Option<Instant>,
+    next_monitor_diagnostic: usize,
+    monitor_sample_ttl: Duration,
     pub last_bus_io: Option<Instant>,
     link: Option<DriveLink>,
     // Only validated physical FC03 replies for the active device belong here.
@@ -194,6 +224,10 @@ impl Default for DriveSession {
             }
         }
         let mut sim_regs = HashMap::new();
+        // These three frequency settings are interdependent (0.01 Hz per word).
+        sim_regs.insert(0x0108, 5000); // F01.08 maximum frequency
+        sim_regs.insert(0x4002, 5000); // H00.02 pump start threshold
+        sim_regs.insert(0x4003, 500);  // H00.03 pump stop threshold
         sim_regs.insert(0x2100, 4);    // Stopped
         sim_regs.insert(0x2101, 0);    // Forward
         sim_regs.insert(0x2102, 0);    // No fault
@@ -227,10 +261,15 @@ impl Default for DriveSession {
             last_rx_hex: String::new(),
             last_error: None,
             poll_step_idx: 0,
+            monitor_origin: Instant::now(),
+            last_monitor_diagnostics: None,
+            next_monitor_diagnostic: 0,
+            monitor_sample_ttl: Duration::from_secs(5),
             last_bus_io: None,
             link: None,
             measured: HashMap::new(),
             guard,
+            pending_eeprom: BTreeMap::new(),
             sim_regs,
             audit_log: Vec::new(),
             parameters,
@@ -325,6 +364,7 @@ impl DriveSession {
 
     fn reset_measurements(&mut self) {
         self.session_id += 1;
+        self.pending_eeprom.clear();
         // Connection changes always revoke the operator's write unlock.
         self.guard.read_only = true;
         self.measured.clear();
@@ -333,15 +373,18 @@ impl DriveSession {
         self.last_rtt_ms = 0;
         self.connected = false;
         self.poll_step_idx = 0;
+        self.monitor_origin = Instant::now();
+        self.last_monitor_diagnostics = None;
+        self.next_monitor_diagnostic = 0;
+        self.monitor_sample_ttl = Duration::from_secs(5);
     }
 
     fn sample(&self, address: u16) -> Option<u16> {
         if self.simulated {
             return self.sim_regs.get(&address).copied();
         }
-        // One nominal eight-register sweep takes 2.8 s at a 350 ms tick.
         let (value, received) = self.measured.get(&address)?;
-        (self.connected && received.elapsed() <= Duration::from_secs(5)).then_some(*value)
+        (self.connected && received.elapsed() <= self.monitor_sample_ttl).then_some(*value)
     }
 
     pub fn record_audit(&mut self, op: &str, details: serde_json::Value) {
@@ -550,7 +593,7 @@ impl DriveSession {
         Ok(res.tx_hex)
     }
 
-    fn reject_write(&mut self, address: u16, value: u16, reason: String) -> Result<RegisterExchangeResultDto, String> {
+    fn reject_write<T>(&mut self, address: u16, value: u16, reason: String) -> Result<T, String> {
         self.record_audit("write_rejected", serde_json::json!({
             "address": format!("0x{:04X}", address),
             "raw_value": value,
@@ -566,21 +609,101 @@ impl DriveSession {
         value: u16,
         _stop_only_code: Option<&str>, // Legacy UI hint is never trusted.
     ) -> Result<RegisterExchangeResultDto, String> {
+        self.authorize_ram_write(address, value)?;
+        let result = self.exchange_fc06(address, value)?;
+        if let Some(item) = self.parameters.iter().filter(|p| persistent_setting(p)).find_map(|p| {
+            let pair = parameter_addresses(&p.param_id).ok()?;
+            if pair.ram != address { return None; }
+            Some(EepromItem { code: p.param_id.clone(), ram: address, eeprom: pair.eeprom?, raw: value })
+        }) {
+            self.pending_eeprom.insert(item.code.clone(), item);
+        }
+        Ok(result)
+    }
+
+    pub fn eeprom_preview(&self) -> EepromPreview {
+        EepromPreview {
+            pending: self.pending_eeprom.values().cloned().collect(),
+            available: self.parameters.iter().filter(|p| persistent_setting(p))
+                .map(|p| p.param_id.clone()).collect(),
+        }
+    }
+
+    pub fn stage_eeprom_parameter(&mut self, code: &str) -> Result<EepromItem, String> {
+        if !self.simulated && !self.connected { return Err("Подключите ПЧ.".into()); }
+        let index = self.parameters.iter().position(|p| p.param_id == code && persistent_setting(p))
+            .ok_or("Для этого параметра сохранение EEPROM недоступно.")?;
+        let pair = parameter_addresses(&self.parameters[index].param_id).map_err(|e| e.to_string())?;
+        let eeprom = pair.eeprom.ok_or("Адрес EEPROM отсутствует.")?;
+        let raw = self.read_registers_ex(pair.ram, 1)?.values[0];
+        let parameter = self.parameter_with_live_limits(index)?;
+        validate_parameter_value(&parameter, raw).map_err(|e| e.to_string())?;
+        let item = EepromItem { code: code.to_owned(), ram: pair.ram, eeprom, raw };
+        self.pending_eeprom.insert(code.to_owned(), item.clone());
+        Ok(item)
+    }
+
+    /// Only a value previewed in this session can reach a catalog-derived EEPROM address.
+    pub fn persist_eeprom_parameter(&mut self, code: &str, expected_raw: u16) -> Result<RegisterExchangeResultDto, String> {
+        let item = self.pending_eeprom.get(code).cloned().ok_or("Сначала прочитайте параметр в список сохранения.")?;
+        if item.raw != expected_raw { return Err("Предпросмотр устарел. Обновите список.".into()); }
+        self.guard.check_address(self.slave_id, item.ram).map_err(|e| e.to_string())?;
+        if !self.simulated && !self.connected { return Err("Подключите ПЧ.".into()); }
+        let raw = self.read_registers_ex(item.ram, 1)?.values[0];
+        if raw != item.raw {
+            self.pending_eeprom.remove(code);
+            return Err(format!("{code}: RAM изменилась. Повторно добавьте параметр и подтвердите новое значение."));
+        }
+        self.authorize_ram_write(item.ram, raw)?;
+        let result = self.exchange_fc06(item.eeprom, raw)?;
+        self.pending_eeprom.remove(code);
+        self.record_audit("persist_eeprom_parameter", serde_json::json!({
+            "parameter": code, "ram": item.ram, "eeprom": item.eeprom, "raw": raw, "simulated": self.simulated,
+        }));
+        Ok(result)
+    }
+
+    /// Resolve only the named pump-frequency references in the A650M catalog.
+    /// Other symbolic limits are still rejected by validate_parameter_value.
+    fn parameter_with_live_limits(&mut self, index: usize) -> Result<ParameterRecord, String> {
+        let mut parameter = self.parameters[index].clone();
+        if matches!(parameter.param_id.as_str(), "H00.02" | "H00.03") {
+            for bound in [&mut parameter.min_value, &mut parameter.max_value] {
+                if matches!(bound.as_str(), "H00.02" | "H00.03" | "F01.08") {
+                    let address = parameter_addresses(bound).map_err(|e| e.to_string())?.ram;
+                    let raw = self.read_registers_ex(address, 1)
+                        .map_err(|e| format!("Не удалось прочитать предел {bound}: {e}"))?.values[0];
+                    // All three referenced registers contain unsigned hundredths of a Hz.
+                    *bound = (f64::from(raw) / 100.0).to_string();
+                }
+            }
+        }
+        Ok(parameter)
+    }
+
+    fn authorize_ram_write(&mut self, address: u16, value: u16) -> Result<(), String> {
         // Reject forbidden writes before any physical bus I/O.
         if let Err(err) = self.guard.check_address(self.slave_id, address) {
             return self.reject_write(address, value, err.to_string());
         }
 
-        // FC03 state query MUST occur immediately before FC06 within the same
-        // locked DriveSession. Never use simulator cache for physical writes.
+        if !self.simulated && !self.connected {
+            self.guard.read_only = true;
+            return self.reject_write(address, value,
+                "FC06 denied: physical connection not verified; SafetyGuard re-locked".to_string());
+        }
+
+        let index = self.parameters.iter().position(|p| p.access == "RW"
+            && parameter_addresses(&p.param_id).ok().map(|a| a.ram) == Some(address));
+        let parameter = match index.map(|i| self.parameter_with_live_limits(i)).transpose() {
+            Ok(parameter) => parameter,
+            Err(error) => return self.reject_write(address, value, error),
+        };
+
+        // Read the state after all live bounds and immediately before FC06 in the locked session.
         let fresh_state = if self.simulated {
             self.sim_regs.get(&0x2100).copied()
         } else {
-            if !self.connected {
-                self.guard.read_only = true;
-                return self.reject_write(address, value,
-                    "FC06 denied: physical connection not verified; SafetyGuard re-locked".to_string());
-            }
             match self.read_registers_ex(0x2100, 1) {
                 Ok(result) => result.values.first().copied(),
                 Err(err) => {
@@ -610,13 +733,14 @@ impl DriveSession {
             }
         }
 
-        let parameter = self.parameters.iter().find(|p| {
-            p.access == "RW" && parameter_addresses(&p.param_id).ok().map(|a| a.ram) == Some(address)
-        });
-        if let Err(err) = self.guard.check_write_with_frequency(self.slave_id, address, value, verified_state, parameter, setup_frequency) {
+        if let Err(err) = self.guard.check_write_with_frequency(self.slave_id, address, value, verified_state, parameter.as_ref(), setup_frequency) {
             return self.reject_write(address, value, err.to_string());
         }
 
+        Ok(())
+    }
+
+    fn exchange_fc06(&mut self, address: u16, value: u16) -> Result<RegisterExchangeResultDto, String> {
         let req = WriteRegisterRequest::new(self.slave_id, address, value)
             .map_err(|e| e.to_string())?;
         let tx_bytes = self.wire_request(req.to_bytes());
@@ -819,7 +943,7 @@ impl DriveSession {
             self.last_rx_hex = rx_hex.clone();
             let vals = self.accept_reading(address, count, &rx_buf).map_err(|e| {
                 self.err_count += 1;
-                let msg = format!("Рег. 0x{:04X}: {} (RX: {})", address, e, rx_hex);
+                let msg = format!("FC03 0x{address:04X}, регистров {count}: {e} (RX: {rx_hex})");
                 self.last_error = Some(msg.clone());
                 msg
             })?;
@@ -868,17 +992,64 @@ impl DriveSession {
     /// Polls drive telemetry using single-register requests (`count = 1`) in round-robin order.
     /// Optional warning word 0x2103 is not required by the dashboard.
     pub fn poll_telemetry(&mut self) -> Result<DriveTelemetryDto, String> {
-        if !self.simulated {
-            let reg_addr =
-                TELEMETRY_SINGLE_REG_POLL_ORDER[self.poll_step_idx % TELEMETRY_SINGLE_REG_POLL_ORDER.len()];
-            self.poll_step_idx = (self.poll_step_idx + 1) % TELEMETRY_SINGLE_REG_POLL_ORDER.len();
+        self.poll_monitor(false)
+    }
 
-            // A rejected register is unavailable in this snapshot. The next tick
-            // continues the sweep even on firmware that rejects this address.
-            let _ = self.read_registers_ex(reg_addr, 1);
+    pub fn poll_monitor(&mut self, grouped: bool) -> Result<DriveTelemetryDto, String> {
+        let mode = if grouped { MonitorReadMode::Block7 } else { MonitorReadMode::Single };
+        self.poll_monitor_mode(mode, 350)
+    }
+
+    pub fn poll_monitor_mode(&mut self, requested: MonitorReadMode, period_ms: u64) -> Result<DriveTelemetryDto, String> {
+        if self.simulated {
+            return Ok(self.telemetry_snapshot());
         }
 
-        Ok(self.telemetry_snapshot())
+        let (mode, period_ms) = if self.uses_mbap() {
+            (requested, period_ms.clamp(50, 1000))
+        } else {
+            (MonitorReadMode::Single, 350)
+        };
+        // One full single-register sweep can take eight seconds at the slowest setting.
+        self.monitor_sample_ttl = if mode == MonitorReadMode::Single {
+            Duration::from_millis((period_ms * TELEMETRY_SINGLE_REG_POLL_ORDER.len() as u64 + 1500).max(5000))
+        } else {
+            Duration::from_secs(5)
+        };
+        let mut diagnostic_error = None;
+        if mode != MonitorReadMode::Single &&
+            self.last_monitor_diagnostics.map_or(true, |t| t.elapsed() >= Duration::from_millis(333)) {
+            const DIAGNOSTICS: [u16; 3] = [0x2100, 0x2102, 0x2101];
+            let address = DIAGNOSTICS[self.next_monitor_diagnostic];
+            self.next_monitor_diagnostic = (self.next_monitor_diagnostic + 1) % DIAGNOSTICS.len();
+            self.last_monitor_diagnostics = Some(Instant::now());
+            diagnostic_error = self.read_registers_ex(address, 1).err();
+            if !self.connected {
+                return Ok(self.telemetry_snapshot());
+            }
+        }
+
+        let (address, count) = match mode {
+            MonitorReadMode::Single => {
+                let address = TELEMETRY_SINGLE_REG_POLL_ORDER[self.poll_step_idx % TELEMETRY_SINGLE_REG_POLL_ORDER.len()];
+                self.poll_step_idx = (self.poll_step_idx + 1) % TELEMETRY_SINGLE_REG_POLL_ORDER.len();
+                (address, 1)
+            }
+            MonitorReadMode::Block4 => (0x3000, 4),
+            MonitorReadMode::Block7 => (0x3000, 7),
+        };
+        let fresh_scope = self.read_registers_ex(address, count).is_ok() && address == 0x3000;
+        if fresh_scope && mode == MonitorReadMode::Block4 {
+            // U00.06 is outside the four-word scope block.
+            let _ = self.read_registers_ex(0x3006, 1);
+        }
+        let mut snapshot = self.telemetry_snapshot();
+        snapshot.last_error = snapshot.last_error.or(diagnostic_error);
+        if fresh_scope && snapshot.connected {
+            snapshot.scope_sample_ms = self.measured.get(&address)
+                .map(|(_, received)| received.duration_since(self.monitor_origin).as_millis() as u64);
+        }
+        Ok(snapshot)
     }
 
     fn telemetry_snapshot(&self) -> DriveTelemetryDto {
@@ -895,6 +1066,7 @@ impl DriveSession {
         let dc_bus_volt = self.sample(0x3006);
 
         DriveTelemetryDto {
+            scope_sample_ms: None,
             connected: self.connected,
             simulated: self.simulated,
             write_enabled: !self.guard.read_only,

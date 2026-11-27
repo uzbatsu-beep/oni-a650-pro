@@ -229,16 +229,18 @@
     .terminal-pin { transition: all 0.18s ease; cursor: pointer; }
     .terminal-pin:hover { filter: brightness(1.22); transform: translateY(-1px); }
     .brand-logo { width: 45px; height: 33px; object-fit: contain; padding: 4px; background: #fff; border-radius: 5px; }
-    .brand-help { margin-left: auto; flex: 0 0 28px; height: 28px; border-radius: 50%; font-size: 15px; font-weight: 700; }
     .workspace-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
     .header-context, .appearance-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     .appearance-controls { justify-content: flex-end; }
     .housing-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .housing-choices button { padding: 8px 12px; font-weight: 600; }
     .housing-choices button[aria-pressed="true"] { border-color: var(--primary); box-shadow: inset 0 -3px var(--primary); background: var(--primary-trans); }
-    .about-dialog { margin: auto; width: min(420px, calc(100vw - 32px)); padding: 24px; color: var(--text-main); }
-    .about-dialog::backdrop { background: rgba(0, 0, 0, .56); }
-    .about-dialog a { color: var(--text-main); text-decoration: underline; text-underline-offset: 3px; }
+    #eepromDialog::backdrop { background: rgba(0, 0, 0, .56); }
+    #eepromDialog { margin: auto; width: min(620px, calc(100vw - 32px)); max-height: 85vh; overflow: auto; padding: 24px; color: var(--text-main); }
+    #eepromRows { max-height: 36vh; overflow-y: auto; }
+    #eepromRows label { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    #eepromRows small { display: block; color: var(--text-muted); }
+    #eepromDialog button:disabled { opacity: .55; cursor: default; }
     @media (max-width: 700px) {
       .workspace-header { grid-template-columns: 1fr; }
       .appearance-controls { justify-content: flex-start; }
@@ -257,7 +259,6 @@
             <h1 class="text-lg font-bold leading-tight pro-text-primary">ONI A650M PRO</h1>
             <p class="text-[11px] pro-text-muted">Инженерная консоль 2.0</p>
           </div>
-          <button id="aboutOpen" type="button" class="brand-help pro-btn-outline" aria-label="О программе" aria-haspopup="dialog" title="О программе">?</button>
         </div>
       </div>
 
@@ -383,6 +384,7 @@
           <span id="safetyIcon">🔒</span>
           <span id="safetyLabel">SafetyGuard: Только чтение</span>
         </button>
+        <button id="eepromOpen" type="button" class="hidden pro-btn-outline px-3 py-1.5 text-xs font-semibold" aria-haspopup="dialog">Сохранить в EEPROM…</button>
 
       </div>
       <div class="appearance-controls text-xs">
@@ -470,7 +472,24 @@
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 class="text-sm font-bold">Осциллограмма реального времени</h3>
-                <p class="text-xs pro-text-muted">Одиночное чтение FC03 · измерения U00 и диагностика 2100H–2102H</p>
+                <label class="text-xs pro-text-muted" for="monitorMethod">Способ чтения</label>
+                <select id="monitorMethod" class="pro-input text-xs px-2 py-1" disabled>
+                  <option value="single">Одиночные запросы</option>
+                  <option value="block4">Блок 4 + шина DC отдельно</option>
+                  <option value="block7">Блок 7 регистров</option>
+                </select>
+                <label class="text-xs pro-text-muted" for="monitorPeriod">Период опроса</label>
+                <select id="monitorPeriod" class="pro-input text-xs px-2 py-1" disabled>
+                  <option value="50">50 мс</option>
+                  <option value="100">100 мс</option>
+                  <option value="250">250 мс</option>
+                  <option value="350" selected>350 мс</option>
+                  <option value="500">500 мс</option>
+                  <option value="1000">1000 мс</option>
+                </select>
+                <span id="monitorInterval" class="text-xs pro-text-muted" title="Интервал между двумя успешными чтениями U00.00">По ответам ПЧ —</span>
+                <p id="monitorReadMode" class="text-xs pro-text-muted">Выбор доступен при подключении по Modbus TCP/IP (MBAP).</p>
+                <p id="monitorError" class="text-xs" style="color:var(--danger)" hidden></p>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-xs">
                 <span class="flex items-center gap-1.5 font-semibold pro-text-primary" title="U00.00">
@@ -1082,17 +1101,29 @@
     </main>
   </div>
 
-  <dialog id="aboutDialog" class="about-dialog pro-card" aria-labelledby="aboutTitle">
-    <h2 id="aboutTitle" class="text-lg font-bold">О программе</h2>
-    <p class="mt-2 text-sm">ONI A650M PRO · 0.2.0-preview.7 · ПЧ ONI A650M редакции 3. Каталог содержит 617 параметров.</p>
-    <p class="mt-2 text-sm">Выберите COM-порт для работы по RS-485 (Modbus RTU) или откройте симулятор. При запуске включён режим «Только чтение».</p>
-    <div class="flex items-center justify-between gap-3 mt-4 text-sm">
-      <a id="projectLink" href="https://github.com/uzbatsu-beep/oni-a650-pro" target="_blank" rel="noopener noreferrer">Проект и README на GitHub</a>
-      <form method="dialog"><button class="pro-btn-outline px-3 py-1.5" autofocus>Закрыть</button></form>
+  <dialog id="eepromDialog" class="pro-card" aria-labelledby="eepromTitle">
+    <div class="space-y-3">
+      <h2 id="eepromTitle" class="text-base font-bold">Сохранение RAM в EEPROM</h2>
+      <p id="eepromDevice" class="text-xs mono"></p>
+      <p class="text-sm">Здесь показаны параметры групп F и H00, записанные в RAM в этом сеансе. Чтобы сохранить другую настройку, прочитайте её из ПЧ по коду.</p>
+      <form id="eepromStage" class="flex flex-wrap items-center gap-2">
+        <label for="eepromCode" class="text-xs">Код параметра</label>
+        <input id="eepromCode" list="eepromCodes" autocomplete="off" placeholder="F03.00" class="pro-input px-2 py-1.5 mono text-sm" size="10">
+        <datalist id="eepromCodes"></datalist>
+        <button id="eepromAdd" class="pro-btn-outline px-3 py-1.5 text-xs">Прочитать RAM</button>
+      </form>
+      <div id="eepromRows" class="text-sm"></div>
+      <p id="eepromLock" class="text-xs pro-text-muted"></p>
+      <p id="eepromStatus" class="text-sm" role="status" aria-live="polite"></p>
+      <div class="flex justify-end flex-wrap gap-2">
+        <button id="eepromClose" type="button" class="pro-btn-outline px-3 py-1.5 text-xs">Закрыть</button>
+        <button id="eepromSave" type="button" class="pro-btn-primary px-3 py-1.5 text-xs" disabled>Записать выбранные</button>
+      </div>
     </div>
   </dialog>
   <script src="drive-diagnostics.js"></script>
   <script src="drive-session.js"></script>
+  <script src="eeprom.js"></script>
   <script src="scope-math.js"></script>
   <script src="wizard-profile.js"></script>
   <script>
@@ -1441,6 +1472,7 @@
           panel.classList.toggle('hidden', panel.id !== target);
         });
         document.getElementById('current-page-title').textContent = PAGE_TITLES[target] || 'ONI A650M PRO';
+        document.getElementById('eepromOpen').classList.toggle('hidden', target !== 'tab-params');
         if (target === 'tab-params') { renderGroupTree(); renderParamTable(); }
         if (target === 'tab-terminals') renderTerminalSvg();
         if (target === 'tab-wizards') { updatePidWizard(); updateH00Wizard(); }
@@ -1454,20 +1486,6 @@
       });
     });
 
-    const aboutDialog = document.getElementById('aboutDialog');
-    document.getElementById('aboutOpen').addEventListener('click', () => aboutDialog.showModal());
-    if (TAURI_INVOKE) {
-      document.getElementById('projectLink').addEventListener('click', async event => {
-        event.preventDefault();
-        try {
-          await TAURI_INVOKE('open_project_repository');
-        } catch (err) {
-          showToast(`Не удалось открыть GitHub: ${err}`, 'error');
-          aboutDialog.close();
-        }
-      });
-    }
-
     document.querySelectorAll('[data-housing]').forEach(button => {
       button.addEventListener('click', () => {
         state.rating = button.dataset.housing;
@@ -1475,7 +1493,17 @@
       });
     });
 
+    const eepromControl = setupEepromDialog({
+      active: () => driveSession.active,
+      native: Boolean(TAURI_INVOKE),
+      canWrite: () => state.allowWrite,
+      catalog: wizardCatalog,
+      request: (session, command, args) => driveSession.request(session, command, args),
+      updateStatus: updateConnectionIndicators
+    });
+
     function syncSafetyUi() {
+      eepromControl.sync();
       const btn = document.getElementById('safetyToggleBtn');
       const icon = document.getElementById('safetyIcon');
       const lbl = document.getElementById('safetyLabel');
@@ -1526,7 +1554,7 @@
       syncSafetyUi();
       appendAudit('safety_guard_toggle', { allow_write: state.allowWrite });
       showToast(state.allowWrite
-        ? 'SafetyGuard: разрешены только проверенные Rust Backend операции FC06; запись EEPROM и опасные параметры заблокированы'
+        ? 'SafetyGuard разрешил запись. Сохранение в EEPROM подтверждается отдельно.'
         : 'SafetyGuard: включен режим «Только чтение»', state.allowWrite ? 'success' : 'warn');
     });
 
@@ -1727,6 +1755,7 @@
       if (batchRead) { batchRead.cancelled = true; batchRead = null; updateBatchButton(); }
       document.getElementById('sidebarFormatText').textContent = ethernetLabels[document.getElementById('quickConnMode').value]
         || state.format.replace('1-', '').replace(/-/g, '') + ' · ' + state.baud;
+      eepromControl.dismiss();
       const pending = driveSession.transition(command, args);
       const revision = driveSession.revision;
       state.allowWrite = false;
@@ -1820,6 +1849,82 @@
     let telemetryMode = 'waiting';
     let polling = false;
     let lastSnapshotAt = 0;
+    const monitorMethod = document.getElementById('monitorMethod');
+    const monitorError = document.getElementById('monitorError');
+    const monitorPeriod = document.getElementById('monitorPeriod');
+    const monitorInterval = document.getElementById('monitorInterval');
+    const monitorReadMode = document.getElementById('monitorReadMode');
+    const singlePeriod = 350;
+    let monitorTimer = null;
+    let preferredMethod = 'single';
+    let monitorRetry = false;
+    let lastScopeSampleMs = null;
+    let preferredPeriod = String(singlePeriod);
+    try {
+      const method = localStorage.getItem('oni.mbapMonitorMethod');
+      if (Array.from(monitorMethod.options).some(option => option.value === method)) preferredMethod = method;
+      const saved = localStorage.getItem('oni.mbapMonitorPeriod');
+      if (Array.from(monitorPeriod.options).some(option => option.value === saved)) preferredPeriod = saved;
+    } catch (_) {}
+
+    function syncMonitorOptions() {
+      const mbap = telemetryMode === 'rs485' && driveSession.active?.ethernet_protocol === 'modbus_tcp';
+      monitorMethod.disabled = monitorPeriod.disabled = !mbap;
+      monitorPeriod.value = mbap ? preferredPeriod : String(singlePeriod);
+      monitorMethod.value = mbap ? preferredMethod : 'single';
+      const descriptions = {
+        single: 'FC03 · по одному регистру за запрос, восемь запросов за полный обход.',
+        block4: 'FC03 · U00.00–U00.03 одним запросом, напряжение шины U00.06 отдельным. Диагностика по одному регистру.',
+        block7: 'FC03 · U00.00–U00.06 одним запросом. Диагностика по одному регистру.'
+      };
+      monitorReadMode.textContent = mbap ? descriptions[monitorMethod.value]
+        : 'Выбор доступен при подключении по Modbus TCP/IP (MBAP).';
+    }
+
+    function displayMonitorError(message) {
+      monitorError.textContent = message ? 'Последняя ошибка опроса · ' + message : '';
+      monitorError.hidden = !message;
+    }
+
+    function monitorPeriodMs() {
+      if (document.getElementById('tab-dashboard').classList.contains('hidden')) return singlePeriod;
+      return Number(monitorPeriod.value);
+    }
+
+    function resetMeasuredInterval() {
+      lastScopeSampleMs = null;
+      monitorInterval.textContent = 'По ответам ПЧ —';
+    }
+
+    function updateMeasuredInterval(stamp) {
+      if (!Number.isFinite(stamp)) return;
+      const elapsed = stamp - lastScopeSampleMs;
+      if (lastScopeSampleMs !== null && elapsed > 0) {
+        monitorInterval.textContent = 'По ответам ПЧ · ' + elapsed + ' мс · ' +
+          (1000 / elapsed).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + ' Гц';
+      }
+      lastScopeSampleMs = stamp;
+    }
+
+    function changeMonitorSettings() {
+      preferredMethod = monitorMethod.value;
+      preferredPeriod = monitorPeriod.value;
+      try {
+        localStorage.setItem('oni.mbapMonitorMethod', preferredMethod);
+        localStorage.setItem('oni.mbapMonitorPeriod', preferredPeriod);
+      } catch (_) {}
+      monitorRetry = false;
+      displayMonitorError(null);
+      telemetryEpoch++;
+      resetMeasuredInterval();
+      syncMonitorOptions();
+      if (monitorTimer !== null) {
+        clearTimeout(monitorTimer);
+        monitorTimer = setTimeout(runMonitorTick, monitorPeriodMs());
+      }
+    }
+    monitorMethod.addEventListener('change', changeMonitorSettings);
+    monitorPeriod.addEventListener('change', changeMonitorSettings);
 
     function renderReadings() {
       for (const [id, value, digits, rawScale, rawOverride] of [
@@ -1849,7 +1954,11 @@
     function selectTelemetryMode(mode) {
       telemetryMode = mode;
       telemetryEpoch++;
-      lastSnapshotAt = 0;
+      displayMonitorError(null);
+      monitorRetry = false;
+      lastSnapshotAt = performance.now();
+      resetMeasuredInterval();
+      syncMonitorOptions();
       state.scopeHistory = [];
       clearReadings();
       drawScope();
@@ -1868,25 +1977,30 @@
 
     async function stepSimulation() {
       if (telemetryMode === 'waiting') return;
+      let appendSample = true;
       if (telemetryMode === 'rs485') {
         if (polling) {
-          if (performance.now() - lastSnapshotAt > 5000) {
-            clearReadings();
-            recordScopeSample();
-          }
+          expireStalledPoll();
           return;
         }
         const epoch = telemetryEpoch;
+        const readMode = document.getElementById('tab-dashboard').classList.contains('hidden') ? 'single' : monitorMethod.value;
+        const periodMs = monitorPeriodMs();
         polling = true;
         try {
           const session = driveSession.active;
-          const tel = await driveSession.request(session, 'poll_drive_telemetry');
+          const tel = await driveSession.request(session, 'poll_drive_telemetry', { readMode, periodMs });
           if (epoch !== telemetryEpoch) return;
           if (!tel || tel.simulated) {
             selectTelemetryMode('waiting');
             return;
           }
           lastSnapshotAt = performance.now();
+          monitorRetry = !tel.connected || (tel.last_error && !Number.isFinite(tel.scope_sample_ms));
+          if (tel.last_error) displayMonitorError(tel.last_error);
+          if (tel.connected && Number.isFinite(tel.output_freq_hz)) updateMeasuredInterval(tel.scope_sample_ms);
+          else resetMeasuredInterval();
+          appendSample = readMode === 'single' || Number.isFinite(tel.scope_sample_ms) || !Number.isFinite(tel.output_freq_hz);
           if (tel.connected) {
             state.driveState = tel.state_code ?? null;
             state.direction = outputDirection(tel.status_bits);
@@ -1909,6 +2023,9 @@
         } catch (err) {
           if (epoch !== telemetryEpoch) return;
           clearReadings();
+          monitorRetry = true;
+          displayMonitorError(String(err));
+          resetMeasuredInterval();
           updateConnectionIndicators({simulated: false, connected: false,
             port_name: driveSession.active?.port_name || '—', ethernet_endpoint: driveSession.active?.ethernet_endpoint, ethernet_protocol: driveSession.active?.ethernet_protocol, last_error: String(err)});
         } finally {
@@ -1939,17 +2056,19 @@
       renderReadings();
 
       renderDriveDiagnostics();
-      recordScopeSample();
+      if (appendSample) recordScopeSample();
     }
 
     function recordScopeSample() {
+      const t = performance.now();
       state.scopeHistory.push({
+        t,
         f: state.actualFreqHz,
         i: state.outputCurrentA,
         dc: state.dcBusVolt,
         outputVolt: state.outputVolt
       });
-      if (state.scopeHistory.length > 90) state.scopeHistory.shift();
+      while (state.scopeHistory[0].t < t - 30000) state.scopeHistory.shift();
       drawScope();
     }
 
@@ -1997,12 +2116,13 @@
         ctx.lineWidth = 2.2;
         ctx.beginPath();
         let segmentStarted = false;
-        pts.forEach((p, idx) => {
+        const leftEdge = Math.max(pts[0].t, pts[pts.length - 1].t - 30000);
+        pts.forEach(p => {
           if (!Number.isFinite(p[key])) {
             segmentStarted = false;
             return;
           }
-          const x = 38 + (idx / 89) * (W - 50);
+          const x = 38 + ((p.t - leftEdge) / 30000) * (W - 50);
           const v = p[key] * A650ScopeMath.scales[key];
           const y = A650ScopeMath.yCoordinate(v, axisMax, H);
           if (segmentStarted) ctx.lineTo(x, y);
@@ -2020,7 +2140,27 @@
       ctx.setLineDash([]);
     }
 
-    setInterval(stepSimulation, 350);
+    async function runMonitorTick() {
+      monitorTimer = null;
+      const started = performance.now();
+      try {
+        await stepSimulation();
+      } finally {
+        const period = monitorRetry ? Math.max(singlePeriod, monitorPeriodMs()) : monitorPeriodMs();
+        monitorTimer = setTimeout(runMonitorTick, Math.max(0, started + period - performance.now()));
+      }
+    }
+    monitorTimer = setTimeout(runMonitorTick, singlePeriod);
+    function expireStalledPoll() {
+      if (!polling || performance.now() - lastSnapshotAt <= 5000) return;
+      if ([state.actualFreqHz, state.outputVolt, state.outputCurrentA, state.dcBusVolt,
+           state.driveState, state.direction, state.faultCode, state.targetFreqHz].some(Number.isFinite)) {
+        clearReadings();
+        resetMeasuredInterval();
+        recordScopeSample();
+      }
+    }
+    setInterval(expireStalledPoll, 1000);
 
     let batchRead = null;
     const batchButton = document.getElementById('btnReadGroupFromDrive');

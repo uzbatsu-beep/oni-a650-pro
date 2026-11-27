@@ -9,27 +9,12 @@ use a650_core::actor::DriveSession;
 #[cfg(feature = "gui")]
 mod gui_app {
     use a650_core::actor::{
-        enumerate_ports, ConnectionStatusDto, DriveSession, DriveTelemetryDto, EthernetProtocol,
+        enumerate_ports, ConnectionStatusDto, EepromItem, EepromPreview, DriveSession, DriveTelemetryDto, EthernetProtocol, MonitorReadMode,
         RegisterExchangeResultDto, SerialPortInfoDto, SharedDriveState,
     };
     use a650_core::addresses::parameter_addresses;
     use a650_core::ods::{parse_studio_profile, serialize_studio_profile, StudioProfile};
     use std::sync::Mutex;
-
-    #[tauri::command]
-    pub fn open_project_repository() -> Result<(), String> {
-        #[cfg(target_os = "windows")]
-        let opener = "explorer.exe";
-        #[cfg(target_os = "macos")]
-        let opener = "open";
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-        let opener = "xdg-open";
-        std::process::Command::new(opener)
-            .arg(env!("CARGO_PKG_REPOSITORY"))
-            .spawn()
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    }
 
     #[tauri::command]
     pub fn list_serial_ports() -> Vec<SerialPortInfoDto> {
@@ -95,13 +80,19 @@ mod gui_app {
     }
 
     #[tauri::command]
-    pub fn poll_drive_telemetry(
+    pub async fn poll_drive_telemetry(
         state: tauri::State<'_, SharedDriveState>,
         session_id: u64,
+        grouped: Option<bool>,
+        read_mode: Option<MonitorReadMode>,
+        period_ms: Option<u64>,
     ) -> Result<DriveTelemetryDto, String> {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
         sess.require_session(session_id)?;
-        sess.poll_telemetry()
+        let mode = read_mode.unwrap_or_else(|| {
+            if grouped == Some(true) { MonitorReadMode::Block7 } else { MonitorReadMode::Single }
+        });
+        sess.poll_monitor_mode(mode, period_ms.unwrap_or(350))
     }
 
     #[tauri::command]
@@ -140,6 +131,27 @@ mod gui_app {
         let mut sess = state.0.lock().map_err(|e| e.to_string())?;
         sess.require_session(session_id)?;
         sess.write_register_safe_ex(address, value, stop_only_code.as_deref())
+    }
+
+    #[tauri::command]
+    pub fn eeprom_preview(state: tauri::State<'_, SharedDriveState>, session_id: u64) -> Result<EepromPreview, String> {
+        let sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
+        Ok(sess.eeprom_preview())
+    }
+
+    #[tauri::command]
+    pub async fn stage_eeprom_parameter(state: tauri::State<'_, SharedDriveState>, session_id: u64, code: String) -> Result<EepromItem, String> {
+        let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
+        sess.stage_eeprom_parameter(&code)
+    }
+
+    #[tauri::command]
+    pub async fn persist_eeprom_parameter(state: tauri::State<'_, SharedDriveState>, session_id: u64, code: String, expected_raw: u16) -> Result<RegisterExchangeResultDto, String> {
+        let mut sess = state.0.lock().map_err(|e| e.to_string())?;
+        sess.require_session(session_id)?;
+        sess.persist_eeprom_parameter(&code, expected_raw)
     }
 
     #[tauri::command]
@@ -189,7 +201,6 @@ mod gui_app {
         tauri::Builder::default()
             .manage(SharedDriveState(Mutex::new(DriveSession::default())))
             .invoke_handler(tauri::generate_handler![
-                open_project_repository,
                 list_serial_ports,
                 get_connection_status,
                 connect_serial,
@@ -199,6 +210,9 @@ mod gui_app {
                 poll_drive_telemetry,
                 set_safety_allow_write,
                 write_register_fc06,
+                eeprom_preview,
+                stage_eeprom_parameter,
+                persist_eeprom_parameter,
                 read_registers_fc03,
                 calc_parameter_addresses,
                 save_export_file,
